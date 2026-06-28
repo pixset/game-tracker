@@ -37,7 +37,7 @@ class ConnectionManager:
     async def broadcast_top10(self):
         if not self.active:
             return
-        payload = db.get_top10()
+        payload = db.get_leaderboard(None, 1000)
         dead = []
         for ws in self.active:
             try:
@@ -80,7 +80,13 @@ app.add_middleware(
 
 @app.get("/api/top10")
 def top10():
-    return db.get_top10()
+    return db.get_leaderboard(None, 10)
+
+
+@app.get("/api/top")
+def top(source: str = "all", limit: int = 100):
+    limit = max(1, min(limit, 1000))
+    return db.get_leaderboard(source, limit)
 
 
 @app.get("/api/games/{source}/{source_id}")
@@ -101,7 +107,7 @@ async def ws_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
     try:
         # сразу шлём текущий снэпшот при подключении
-        await websocket.send_json(db.get_top10())
+        await websocket.send_json(db.get_leaderboard(None, 1000))
         while True:
             await websocket.receive_text()  # держим соединение живым (ping/pong от клиента)
     except WebSocketDisconnect:

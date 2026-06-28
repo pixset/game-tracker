@@ -74,11 +74,22 @@ def insert_snapshot(source: str, source_id: str, players: int, ts: int | None = 
         )
 
 
-def get_top10():
-    """Последний снэпшот по каждой игре, отсортированный по онлайну."""
+def get_leaderboard(source: str | None = None, limit: int = 100):
+    """
+    Последний снэпшот по каждой игре, отсортированный по онлайну.
+    source: None/"all" — все источники, иначе "steam" или "roblox".
+    """
+    params: list = []
+    where_clause = ""
+    if source and source.lower() != "all":
+        where_clause = "WHERE g.source = ?"
+        params.append(source.lower())
+
+    ts_join = "AND" if where_clause else "WHERE"
+
     with get_conn() as conn:
         rows = conn.execute(
-            """
+            f"""
             SELECT g.source, g.source_id, g.name, g.image_url,
                    s.players, s.ts,
                    (SELECT players FROM snapshots s2
@@ -87,13 +98,15 @@ def get_top10():
                     ORDER BY s2.ts DESC LIMIT 1) AS prev_players
             FROM games g
             JOIN snapshots s ON s.source = g.source AND s.source_id = g.source_id
-            WHERE s.ts = (
+            {where_clause}
+            {ts_join} s.ts = (
                 SELECT MAX(ts) FROM snapshots s3
                 WHERE s3.source = g.source AND s3.source_id = g.source_id
             )
             ORDER BY s.players DESC
-            LIMIT 10
-            """
+            LIMIT ?
+            """,
+            (*params, limit),
         ).fetchall()
         return [
             {
@@ -107,6 +120,11 @@ def get_top10():
             }
             for r in rows
         ]
+
+
+def get_top10():
+    """Обёртка для обратной совместимости (используется лишь по умолчанию)."""
+    return get_leaderboard(None, 10)
 
 
 def get_game_history(source: str, source_id: str, hours: int = 24):
