@@ -18,6 +18,7 @@ logger = logging.getLogger("collector")
 STEAM_URL = "https://api.steampowered.com/ISteamUserStats/GetNumberOfCurrentPlayers/v1/"
 STEAM_HEADER_IMG = "https://cdn.cloudflare.steamstatic.com/steam/apps/{appid}/header.jpg"
 ROBLOX_URL = "https://games.roblox.com/v1/games"
+ROBLOX_ICONS_URL = "https://thumbnails.roblox.com/v1/games/icons"
 
 
 async def fetch_steam(client: httpx.AsyncClient, appid: str) -> int | None:
@@ -50,6 +51,31 @@ async def fetch_roblox_batch(client: httpx.AsyncClient, universe_ids: list[str])
         return {}
 
 
+async def fetch_roblox_icons(client: httpx.AsyncClient, universe_ids: list[str]) -> dict:
+    """Иконки игр Roblox — отдельный публичный эндпоинт thumbnails.roblox.com."""
+    if not universe_ids:
+        return {}
+    try:
+        r = await client.get(
+            ROBLOX_ICONS_URL,
+            params={
+                "universeIds": ",".join(universe_ids),
+                "size": "150x150",
+                "format": "Png",
+            },
+            timeout=10,
+        )
+        r.raise_for_status()
+        result = {}
+        for item in r.json().get("data", []):
+            if item.get("state") == "Completed" and item.get("imageUrl"):
+                result[str(item["targetId"])] = item["imageUrl"]
+        return result
+    except Exception as e:
+        logger.warning(f"roblox icons failed: {e}")
+        return {}
+
+
 async def collect_once():
     """Один проход сбора данных по всем играм из списка."""
     async with httpx.AsyncClient() as client:
@@ -68,13 +94,17 @@ async def collect_once():
 
         await asyncio.gather(*(one_steam(g) for g in STEAM_GAMES))
 
-        # --- Roblox: один батч-запрос на все universeId ---
+        # --- Roblox: батч-запрос на онлайн + батч-запрос на иконки ---
         universe_ids = [g["universe_id"] for g in ROBLOX_GAMES]
         playing_map = await fetch_roblox_batch(client, universe_ids)
+        icons_map = await fetch_roblox_icons(client, universe_ids)
         for g in ROBLOX_GAMES:
             count = playing_map.get(g["universe_id"])
             if count is not None:
-                db.upsert_game("roblox", g["universe_id"], g["name"])
+                db.upsert_game(
+                    "roblox", g["universe_id"], g["name"],
+                    icons_map.get(g["universe_id"]),
+                )
                 db.insert_snapshot("roblox", g["universe_id"], count)
 
     logger.info("collect_once: done")
