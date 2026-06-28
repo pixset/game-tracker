@@ -4,11 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Живой трекинг онлайна игр</title>
-<link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
-<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
-<link rel="manifest" href="/icons/site.webmanifest">
-<link rel="icon" type="image/x-icon" href="/icons/favicon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -88,13 +83,23 @@
   .star-filter{ display:flex; align-items:center; gap:6px; font-size:13px; color:var(--text-dim); cursor:pointer; user-select:none; padding:8px 12px; border:1px solid var(--line); border-radius:10px; background:var(--panel);}
   .star-filter.active{ color:var(--amber); border-color:rgba(255,180,84,.35); background:rgba(255,180,84,.08); }
 
+  /* ---------- THUMBNAILS (иконки игр) ---------- */
+  .thumb{ position:relative; overflow:hidden; border-radius:6px; border:1px solid var(--line); flex-shrink:0; }
+  .thumb::before{ content:attr(data-letter); position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; color:var(--text-dim); font-weight:700; font-size:13px; }
+  .thumb img{ position:relative; z-index:1; width:100%; height:100%; object-fit:cover; display:block; }
+  .thumb.src-steam{ background:linear-gradient(135deg, rgba(77,216,232,.16), #11161b); }
+  .thumb.src-roblox{ background:linear-gradient(135deg, rgba(255,180,84,.16), #11161b); }
+  .thumb.row-thumb{ width:32px; height:32px; }
+  .thumb.detail-thumb{ width:56px; height:56px; }
+  .thumb.detail-thumb::before{ font-size:20px; }
+
   /* ---------- LIST ---------- */
   .section{ padding:18px 40px 50px; }
   .section-head{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:14px;}
   .section-head h2{ font-size:14px; text-transform:uppercase; letter-spacing:1.2px; color:var(--text-dim); font-weight:700;}
   .section-head .ts{ font-size:11px; color:var(--text-dim);}
 
-  .board{ border:1px solid var(--line); border-radius:12px; overflow:hidden; background:var(--panel);}
+  .board{ border:1px solid var(--line); border-radius:12px; overflow:hidden; background:var(--panel); max-height:70vh; overflow-y:auto; }
   .row{ display:grid; grid-template-columns: 36px 30px 44px 1fr 110px 90px 130px; align-items:center; padding:13px 16px; border-bottom:1px solid var(--line); transition:background .15s; cursor:pointer; }
   .row:hover{ background:var(--panel-2); }
   .row:last-child{ border-bottom:none; }
@@ -102,7 +107,6 @@
   .rank.top3{ color:var(--amber); font-weight:700;}
   .star-btn{ background:none; border:none; cursor:pointer; font-size:16px; color:var(--line); line-height:1; padding:4px; }
   .star-btn.active{ color:var(--amber); }
-  .thumb{ width:32px; height:32px; border-radius:6px; background:linear-gradient(135deg,#1c252c,#11161b); border:1px solid var(--line);}
   .game-name{ font-weight:600; font-size:14px; }
   .game-name .src{ font-size:11px; color:var(--text-dim); margin-left:8px; font-weight:400;}
   .players{ font-family:'JetBrains Mono',monospace; font-size:14.5px; font-weight:600; text-align:right; }
@@ -119,7 +123,6 @@
   .back-link:hover{ color:var(--text); }
   .detail-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:20px; flex-wrap:wrap; margin-bottom:8px;}
   .detail-id{ display:flex; gap:16px; align-items:center; }
-  .detail-thumb{ width:56px; height:56px; border-radius:10px; background:linear-gradient(135deg,#1c252c,#11161b); border:1px solid var(--line); flex-shrink:0;}
   .detail-name{ font-size:26px; font-weight:800; letter-spacing:-.3px;}
   .detail-sub{ font-size:13px; color:var(--text-dim); margin-top:4px; }
   .detail-sub .badge{ font-family:'JetBrains Mono',monospace; padding:2px 7px; border-radius:5px; border:1px solid var(--line); font-size:11px; margin-right:8px;}
@@ -130,17 +133,27 @@
   .detail-stats{ display:grid; grid-template-columns:repeat(6,1fr); gap:12px; margin:28px 0; }
   .dstat{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px 16px; }
   .dstat .label{ font-size:10.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.6px; }
-  .dstat .value{ font-family:'JetBrains Mono',monospace; font-size:19px; font-weight:700; margin-top:6px; }
+  .dstat .value{ font-family:'JetBrains Mono',monospace; font-size:19px; font-weight:700; margin-top:6px; transition: color .3s; }
   .dstat .value.current{ color:var(--up); }
+  .dstat .value.flash{ color:var(--signal); }
 
-  .chart-card{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:20px 22px 10px; }
+  .chart-card{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:20px 22px 10px; position:relative; }
   .chart-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;}
-  .chart-head h3{ font-size:13px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.8px; font-weight:700; }
+  .chart-head h3{ font-size:13px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.8px; font-weight:700; display:flex; align-items:center; gap:8px;}
+  .live-tag{ font-size:10px; font-weight:700; color:var(--up); border:1px solid rgba(61,220,132,.35); background:rgba(61,220,132,.08); padding:2px 7px; border-radius:10px; letter-spacing:.5px; }
   .range-tabs{ display:flex; gap:4px; background:var(--panel-2); border:1px solid var(--line); border-radius:8px; padding:3px; }
   .range-tabs button{ border:none; background:transparent; color:var(--text-dim); font-size:12px; font-weight:600; padding:5px 11px; border-radius:6px; cursor:pointer; }
   .range-tabs button.active{ background:var(--bg); color:var(--signal); }
-  .chart-svg{ width:100%; height:240px; display:block; }
+  .chart-svg{ width:100%; height:240px; display:block; cursor:crosshair; }
   .axis-label{ fill:var(--text-dim); font-size:10px; font-family:'JetBrains Mono',monospace; }
+  .chart-hint{ font-size:11px; color:var(--text-dim); margin-top:4px; text-align:right; }
+  .chart-tooltip{
+    position:absolute; pointer-events:none; display:none; z-index:5;
+    background:var(--panel-2); border:1px solid var(--line); border-radius:8px;
+    padding:7px 11px; font-size:12px; white-space:nowrap; box-shadow:0 6px 18px rgba(0,0,0,.4);
+  }
+  .chart-tooltip b{ font-family:'JetBrains Mono',monospace; color:var(--signal); }
+  .chart-tooltip .tt-time{ color:var(--text-dim); font-size:11px; margin-top:2px; }
 
   @media(max-width:760px){
     header,.hero,.stat-row,.section,.detail-view,.growth-strip,.filter-bar{ padding-left:18px; padding-right:18px; }
@@ -207,7 +220,7 @@
 
     <footer>
       <div class="mono">Источники данных: Steam Web API, Roblox Games API.</div>
-      <div style="margin-top:6px;">Демо-режим работает на тестовых данных — после деплоя backend сайт автоматически переключится на живые цифры.</div>
+      <div style="margin-top:6px;">Демо-режим: ~300 игр сгенерированы для проверки фильтров и масштаба. После деплоя backend сайт переключится на живые цифры — см. README о расширении списка до всех игр Steam.</div>
     </footer>
   </div>
 
@@ -217,7 +230,7 @@
 
     <div class="detail-head">
       <div class="detail-id">
-        <div class="detail-thumb" id="dThumb"></div>
+        <div class="thumb detail-thumb" id="dThumb" data-letter="?"></div>
         <div>
           <div class="detail-name" id="dName">—</div>
           <div class="detail-sub"><span class="badge mono" id="dBadge">—</span><span id="dUpdated">—</span></div>
@@ -232,7 +245,7 @@
 
     <div class="chart-card">
       <div class="chart-head">
-        <h3>Динамика онлайна</h3>
+        <h3>Динамика онлайна <span class="live-tag" id="chartLiveTag">LIVE</span></h3>
         <div class="range-tabs" id="rangeTabs">
           <button data-h="24" class="active">24ч</button>
           <button data-h="168">7д</button>
@@ -240,12 +253,14 @@
         </div>
       </div>
       <svg class="chart-svg" id="chartSvg" viewBox="0 0 800 240" preserveAspectRatio="none"></svg>
+      <div class="chart-hint">Проведи курсором по графику, чтобы увидеть значение в моменте</div>
+      <div class="chart-tooltip" id="chartTooltip"></div>
     </div>
   </div>
 
 <script>
 /* =========================================================
-   ДАННЫЕ
+   ОСНОВНОЙ НАБОР ИГР (узнаваемые названия + реальные Steam appid → реальные иконки)
    ========================================================= */
 const SEED_GAMES = [
   {id:'730', source:'STEAM', name:'Counter-Strike 2', base: 950000},
@@ -262,18 +277,56 @@ const SEED_GAMES = [
   {id:'4000', source:'STEAM', name:"Garry's Mod", base: 54000},
   {id:'230410', source:'STEAM', name:'Warframe', base: 47000},
   {id:'1091500', source:'STEAM', name:'Cyberpunk 2077', base: 41000},
-  {id:'359550', source:'STEAM', name:"Rainbow Six Siege", base: 38000},
+  {id:'359550', source:'STEAM', name:"Tom Clancy's Rainbow Six Siege", base: 38000},
   {id:'1599340', source:'STEAM', name:'Lost Ark', base: 33000},
   {id:'155066525', source:'ROBLOX', name:'Tower Defense Simulator', base: 28000},
   {id:'105600', source:'STEAM', name:'Terraria', base: 24000},
   {id:'322330', source:"STEAM", name:"Don't Starve Together", base: 19000},
   {id:'920577014', source:'ROBLOX', name:'MeepCity', base: 15000},
+  {id:'440', source:'STEAM', name:'Team Fortress 2', base: 58000},
+  {id:'550', source:'STEAM', name:'Left 4 Dead 2', base: 18000},
+  {id:'620', source:'STEAM', name:'Portal 2', base: 9000},
+  {id:'8930', source:'STEAM', name:'Sid Meier\'s Civilization V', base: 12000},
+  {id:'289070', source:'STEAM', name:'Sid Meier\'s Civilization VI', base: 21000},
+  {id:'1158310', source:'STEAM', name:'Crusader Kings III', base: 16000},
+  {id:'394360', source:'STEAM', name:'Hearts of Iron IV', base: 14000},
+  {id:'489830', source:'STEAM', name:'The Elder Scrolls V: Skyrim SE', base: 36000},
+  {id:'814470', source:'STEAM', name:'Borderlands 3', base: 7000},
+  {id:'1517290', source:'STEAM', name:'Battlefield 2042', base: 22000},
 ];
 
-let leaderboard = SEED_GAMES.map(g => ({...g, current: g.base, delta: Math.round((Math.random()-0.4)*g.base*0.02)}));
+/* =========================================================
+   ДОГЕНЕРАЦИЯ ДО ~300 ИГР — чтобы фильтры "Топ 100 / Топ 1000"
+   были осмысленными, а не показывали те же 20 строк.
+   В реальной системе это будет полный список Steam (GetAppList)
+   и каталог Roblox — см. README.
+   ========================================================= */
+const ADJ = ['Crimson','Frozen','Neon','Shadow','Iron','Lunar','Solar','Rusty','Velvet','Quantum','Silent','Broken','Golden','Toxic','Arcane','Feral','Hollow','Electric','Ancient','Drifting','Phantom','Savage','Crystal','Echo','Wild'];
+const NOUN = ['Outpost','Sentinel','Raiders','Horizon','Cartel','Wasteland','Arena','Citadel','Frontier','Syndicate','Abyss','Orbit','Rebellion','Vortex','Asylum','Empire','Drift','Legion','Refuge','Cascade','Bastion','Nexus','Reckoning','Foundry','Tide'];
+
+function generateSyntheticGames(count){
+  const out = [];
+  for(let i=0;i<count;i++){
+    const adj = ADJ[i % ADJ.length];
+    const noun = NOUN[(i*7 + 3) % NOUN.length];
+    const name = `${adj} ${noun}`;
+    const source = (i % 2 === 0) ? 'STEAM' : 'ROBLOX';
+    const id = source === 'STEAM' ? String(9000000 + i) : String(9100000000 + i);
+    const base = Math.round(40 + Math.random()*2600 + (count-i)*4);
+    out.push({id, source, name, base});
+  }
+  return out;
+}
+
+let leaderboard = [...SEED_GAMES, ...generateSyntheticGames(280)]
+  .map(g => ({...g, current: g.base, delta: Math.round((Math.random()-0.4)*g.base*0.02)}));
+
 let usingRealApi = false;
 let ws = null;
 
+/* =========================================================
+   ИЗБРАННОЕ (localStorage)
+   ========================================================= */
 const watchKey = 'tracker_watchlist';
 function getWatchlist(){ try{ return JSON.parse(localStorage.getItem(watchKey)) || []; }catch(e){ return []; } }
 function isWatched(source,id){ return getWatchlist().includes(source+':'+id); }
@@ -285,6 +338,41 @@ function toggleWatch(source,id){
 }
 
 const state = { src:'all', limit:10, search:'', watchlistOnly:false };
+
+/* =========================================================
+   ИКОНКИ ИГР
+   Steam: cdn.cloudflare.steamstatic.com отдаёт обложку по appid
+   публично, без ключа и без CORS-проблем для <img> — работает
+   даже в демо-режиме для настоящих appid.
+   Roblox: публичной статичной ссылки на иконку без вызова API нет,
+   поэтому показываем цветную плашку с первой буквой названия;
+   когда подключён реальный backend — он отдаёт image_url, добытый
+   через thumbnails.roblox.com на сервере, и тогда иконка показывается.
+   ========================================================= */
+function thumbMarkup(game, sizeClass){
+  const letter = (game.name || '?').trim().charAt(0).toUpperCase();
+  const isRoblox = (game.source || '').toUpperCase() === 'ROBLOX';
+  const srcClass = isRoblox ? 'src-roblox' : 'src-steam';
+  let imgUrl = game.image || null;
+  if(!imgUrl && !isRoblox){
+    imgUrl = `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.id}/header.jpg`;
+  }
+  const img = imgUrl ? `<img src="${imgUrl}" loading="lazy" onerror="this.style.display='none'">` : '';
+  return `<div class="thumb ${srcClass} ${sizeClass}" data-letter="${letter}">${img}</div>`;
+}
+
+function fillDetailThumb(game){
+  const el = document.getElementById('dThumb');
+  const letter = (game.name || '?').trim().charAt(0).toUpperCase();
+  const isRoblox = (game.source || '').toUpperCase() === 'ROBLOX';
+  el.className = 'thumb detail-thumb ' + (isRoblox ? 'src-roblox' : 'src-steam');
+  el.dataset.letter = letter;
+  let imgUrl = game.image || null;
+  if(!imgUrl && !isRoblox){
+    imgUrl = `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.id}/header.jpg`;
+  }
+  el.innerHTML = imgUrl ? `<img src="${imgUrl}" loading="lazy" onerror="this.style.display='none'">` : '';
+}
 
 /* =========================================================
    СЕТЬ: реальный API, иначе демо-блуждание
@@ -306,7 +394,7 @@ function connectWS(){
     ws.onmessage = (ev) => {
       try{
         const data = JSON.parse(ev.data);
-        if(Array.isArray(data) && data.length){ leaderboard = data; renderAll(); }
+        if(Array.isArray(data) && data.length){ leaderboard = data; onLeaderboardUpdate(); }
       }catch(e){}
     };
     ws.onerror = () => setStatus(false);
@@ -323,9 +411,25 @@ function randomWalk(){
   });
 }
 
+/* вызывается при каждом обновлении данных — обновляет всё, что видно сейчас */
+function onLeaderboardUpdate(){
+  const route = parseRoute();
+  if(route.view === 'list'){ renderAll(); }
+  else { liveTickDetail(); renderTicker(); }
+}
+
 /* =========================================================
    СПАРКЛАЙН / ТИКЕР
    ========================================================= */
+function mockSeries(seedStr, points, currentValue){
+  let seed = 0; for(const c of String(seedStr)) seed = (seed*31 + c.charCodeAt(0)) >>> 0;
+  const rnd = () => { seed = (seed*1103515245 + 12345) >>> 0; return (seed % 1000)/1000; };
+  const out = []; let v = currentValue * (0.85 + rnd()*0.1);
+  for(let i=0;i<points;i++){ v = v + (rnd()-0.5)*currentValue*0.05; v = Math.max(currentValue*0.5, v); out.push({ts:i, players: Math.round(v)}); }
+  out[out.length-1].players = Math.round(currentValue);
+  return out;
+}
+
 function sparkSvg(seed, current){
   const hist = mockSeries(seed, 30, current);
   const vals = hist.map(p=>p.players);
@@ -333,16 +437,6 @@ function sparkSvg(seed, current){
   const pts = vals.map((v,i)=>`${(i/(vals.length-1)*w).toFixed(1)},${(h-((v-min)/range)*h).toFixed(1)}`).join(' ');
   const up = vals[vals.length-1] >= vals[0];
   return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="${up?'#3ddc84':'#ff7a59'}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-}
-
-function mockSeries(seedStr, points, currentValue){
-  // детерминированный "случайный" ряд на основе id игры, чтобы спарклайны не дёргались на каждый рендер
-  let seed = 0; for(const c of seedStr) seed = (seed*31 + c.charCodeAt(0)) >>> 0;
-  const rnd = () => { seed = (seed*1103515245 + 12345) >>> 0; return (seed % 1000)/1000; };
-  const out = []; let v = currentValue * (0.85 + rnd()*0.1);
-  for(let i=0;i<points;i++){ v = v + (rnd()-0.5)*currentValue*0.05; v = Math.max(currentValue*0.5, v); out.push({ts:i, players: Math.round(v)}); }
-  out[out.length-1].players = Math.round(currentValue);
-  return out;
 }
 
 /* =========================================================
@@ -363,7 +457,7 @@ function renderStatRow(rows){
   document.getElementById('statRow').innerHTML = `
     <div class="stat-card"><div class="label">Суммарный онлайн в подборке</div><div class="value mono">${fmt(total)}</div></div>
     <div class="stat-card"><div class="label">Лидер сейчас</div><div class="value">${leader ? leader.name : '—'}</div></div>
-    <div class="stat-card"><div class="label">Игр в подборке</div><div class="value mono">${rows.length}</div></div>
+    <div class="stat-card"><div class="label">Игр в подборке</div><div class="value mono">${rows.length} <span style="font-size:13px;color:var(--text-dim);">из ${leaderboard.length}</span></div></div>
     <div class="stat-card"><div class="label">Источник данных</div><div class="value mono" style="font-size:17px;">${usingRealApi?'LIVE API':'MOCK FEED'}</div></div>
   `;
 }
@@ -403,7 +497,7 @@ function renderBoard(){
     <div class="row" data-source="${g.source}" data-id="${g.id}">
       <div class="rank ${i<3?'top3':''}">${String(i+1).padStart(2,'0')}</div>
       <button class="star-btn ${watched?'active':''}" data-star="${g.source}:${g.id}">${watched?'★':'☆'}</button>
-      <div class="thumb"></div>
+      ${thumbMarkup(g, 'row-thumb')}
       <div class="game-name">${g.name}<span class="src">${g.source}</span></div>
       <div class="players">${fmt(g.current)}</div>
       <div class="delta ${up?'up':'down'}">${up?'▲':'▼'} ${fmt(Math.abs(g.delta))}</div>
@@ -438,6 +532,29 @@ function mockStats(game){
   };
 }
 
+function statsBlockHtml(stats){
+  return `
+    <div class="dstat"><div class="label">Сейчас</div><div class="value current mono" id="statCurrent">${fmt(stats.current)}</div></div>
+    <div class="dstat"><div class="label">Пик 24ч</div><div class="value mono" id="statPeak24">${fmt(stats.peak_24h)}</div></div>
+    <div class="dstat"><div class="label">Средний 24ч</div><div class="value mono">${fmt(stats.avg_24h)}</div></div>
+    <div class="dstat"><div class="label">Пик за всё время</div><div class="value mono" id="statPeakAll">${fmt(stats.peak_all_time)}</div></div>
+    <div class="dstat"><div class="label">Средний за всё время</div><div class="value mono">${fmt(stats.avg_all_time)}</div></div>
+    <div class="dstat"><div class="label">Замеров</div><div class="value mono">${fmt(stats.samples)}</div></div>
+  `;
+}
+
+function flashEl(id){
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.classList.add('flash');
+  setTimeout(()=>el.classList.remove('flash'), 600);
+}
+
+/* ---- интерактивный график: состояние для hover-тултипа ---- */
+let chartMeta = null; // {history, xs, ys, padT, padB, h, w}
+let currentRangeHours = 24;
+let currentGame = null;
+
 function buildChartSvg(history){
   const w=800,h=240, padL=46, padB=24, padT=14, padR=10;
   const vals = history.map(p=>p.players);
@@ -445,10 +562,14 @@ function buildChartSvg(history){
   const range = (max-min) || 1;
   const plotW = w-padL-padR, plotH = h-padT-padB;
 
-  const x = i => padL + (i/(history.length-1))*plotW;
-  const y = v => padT + plotH - ((v-min)/range)*plotH;
+  const xOf = i => padL + (i/(history.length-1))*plotW;
+  const yOf = v => padT + plotH - ((v-min)/range)*plotH;
 
-  const linePts = history.map((p,i)=>`${x(i).toFixed(1)},${y(p.players).toFixed(1)}`).join(' ');
+  const xs = history.map((_,i)=>xOf(i));
+  const ys = history.map(p=>yOf(p.players));
+  chartMeta = { history, xs, ys, w, h, padT, padB: h-padB };
+
+  const linePts = xs.map((x,i)=>`${x.toFixed(1)},${ys[i].toFixed(1)}`).join(' ');
   const areaPts = `${padL},${padT+plotH} ${linePts} ${padL+plotW},${padT+plotH}`;
 
   let grid = '', labels = '';
@@ -467,7 +588,7 @@ function buildChartSvg(history){
     const label = history.length > 40
       ? d.toLocaleDateString('ru-RU', {day:'2-digit', month:'2-digit'})
       : d.toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'});
-    xlabels += `<text class="axis-label" x="${x(idx).toFixed(1)}" y="${h-6}" text-anchor="middle">${label}</text>`;
+    xlabels += `<text class="axis-label" x="${xOf(idx).toFixed(1)}" y="${h-6}" text-anchor="middle">${label}</text>`;
   }
 
   return `
@@ -480,45 +601,8 @@ function buildChartSvg(history){
     ${grid}${labels}${xlabels}
     <polygon points="${areaPts}" fill="url(#areaFill)"/>
     <polyline points="${linePts}" fill="none" stroke="#4dd8e8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <g id="hoverLayer"></g>
   `;
-}
-
-let currentRangeHours = 24;
-let currentGame = null;
-
-async function openDetail(source, id){
-  location.hash = `#/game/${source.toLowerCase()}/${id}`;
-}
-
-async function renderDetail(source, id){
-  document.getElementById('listView').style.display = 'none';
-  document.getElementById('detailView').style.display = 'block';
-
-  const local = leaderboard.find(g=>g.source.toLowerCase()===source.toLowerCase() && String(g.id)===String(id));
-  currentGame = local || {source: source.toUpperCase(), id, name: 'Игра', current: 10000, base: 10000, delta: 0};
-
-  document.getElementById('dName').textContent = currentGame.name;
-  document.getElementById('dBadge').textContent = currentGame.source;
-  document.getElementById('dUpdated').textContent = 'обновлено только что';
-
-  const watched = isWatched(currentGame.source, currentGame.id);
-  const wb = document.getElementById('dWatchBtn');
-  wb.textContent = watched ? '★ В избранном' : '★ В избранное';
-  wb.className = 'watch-btn ' + (watched ? 'active' : '');
-
-  // статистика — пробуем реальный API, иначе моки
-  const real = await tryFetch(`/api/games/${source}/${id}`);
-  const stats = (real && !real.error) ? real : mockStats(currentGame);
-  document.getElementById('detailStats').innerHTML = `
-    <div class="dstat"><div class="label">Сейчас</div><div class="value current mono">${fmt(stats.current)}</div></div>
-    <div class="dstat"><div class="label">Пик 24ч</div><div class="value mono">${fmt(stats.peak_24h)}</div></div>
-    <div class="dstat"><div class="label">Средний 24ч</div><div class="value mono">${fmt(stats.avg_24h)}</div></div>
-    <div class="dstat"><div class="label">Пик за всё время</div><div class="value mono">${fmt(stats.peak_all_time)}</div></div>
-    <div class="dstat"><div class="label">Средний за всё время</div><div class="value mono">${fmt(stats.avg_all_time)}</div></div>
-    <div class="dstat"><div class="label">Замеров</div><div class="value mono">${fmt(stats.samples)}</div></div>
-  `;
-
-  await renderChart(source, id);
 }
 
 async function renderChart(source, id){
@@ -537,17 +621,131 @@ async function renderChart(source, id){
   document.getElementById('chartSvg').innerHTML = buildChartSvg(history);
 }
 
+function openDetail(source, id){
+  location.hash = `#/game/${source.toLowerCase()}/${id}`;
+}
+
+async function renderDetail(source, id){
+  document.getElementById('listView').style.display = 'none';
+  document.getElementById('detailView').style.display = 'block';
+
+  const local = leaderboard.find(g=>g.source.toLowerCase()===source.toLowerCase() && String(g.id)===String(id));
+  currentGame = local || {source: source.toUpperCase(), id, name: 'Игра', current: 10000, base: 10000, delta: 0};
+
+  document.getElementById('dName').textContent = currentGame.name;
+  document.getElementById('dBadge').textContent = currentGame.source;
+  document.getElementById('dUpdated').textContent = 'обновлено только что';
+  fillDetailThumb(currentGame);
+
+  const watched = isWatched(currentGame.source, currentGame.id);
+  const wb = document.getElementById('dWatchBtn');
+  wb.textContent = watched ? '★ В избранном' : '★ В избранное';
+  wb.className = 'watch-btn ' + (watched ? 'active' : '');
+
+  const real = await tryFetch(`/api/games/${source}/${id}`);
+  const stats = (real && !real.error) ? real : mockStats(currentGame);
+  currentGame.statsCache = stats;
+  document.getElementById('chartLiveTag').textContent = usingRealApi ? 'LIVE' : 'DEMO';
+  document.getElementById('detailStats').innerHTML = statsBlockHtml(stats);
+
+  await renderChart(source, id);
+  attachChartHoverOnce();
+}
+
+/* ---- "живое" обновление графика и карточек статистики, пока открыта страница игры ---- */
+function liveTickDetail(){
+  if(!currentGame) return;
+  const match = leaderboard.find(g=>g.source.toLowerCase()===currentGame.source.toLowerCase() && String(g.id)===String(currentGame.id));
+  if(match){ currentGame.current = match.current; currentGame.delta = match.delta; }
+
+  if(currentGame.statsCache){
+    const c = currentGame.statsCache;
+    c.current = currentGame.current;
+    if(currentGame.current > c.peak_24h){ c.peak_24h = currentGame.current; flashEl('statPeak24'); }
+    if(currentGame.current > c.peak_all_time) c.peak_all_time = currentGame.current;
+    document.getElementById('statCurrent').textContent = fmt(c.current);
+    document.getElementById('statPeak24').textContent = fmt(c.peak_24h);
+    document.getElementById('statPeakAll').textContent = fmt(c.peak_all_time);
+    flashEl('statCurrent');
+  }
+  renderChart(currentGame.source, currentGame.id);
+}
+
+/* ---- наведение на график: вертикальная линия + точка + тултип со значением ---- */
+function svgPointFromEvent(svg, evt){
+  const pt = svg.createSVGPoint();
+  pt.x = evt.clientX; pt.y = evt.clientY;
+  return pt.matrixTransform(svg.getScreenCTM().inverse());
+}
+
+function onChartMove(evt){
+  if(!chartMeta) return;
+  const svg = document.getElementById('chartSvg');
+  const loc = svgPointFromEvent(svg, evt);
+  const { history, xs, ys, padT, padB } = chartMeta;
+
+  let idx = 0, best = Infinity;
+  for(let i=0;i<xs.length;i++){ const d = Math.abs(xs[i]-loc.x); if(d<best){ best=d; idx=i; } }
+
+  const hoverLayer = document.getElementById('hoverLayer');
+  if(hoverLayer){
+    hoverLayer.innerHTML = `
+      <line x1="${xs[idx]}" y1="${padT}" x2="${xs[idx]}" y2="${padB}" stroke="#33414b" stroke-width="1" stroke-dasharray="3,3"/>
+      <circle cx="${xs[idx]}" cy="${ys[idx]}" r="4.5" fill="#4dd8e8" stroke="#0a0d10" stroke-width="2"/>
+    `;
+  }
+
+  const tooltip = document.getElementById('chartTooltip');
+  const cardRect = svg.closest('.chart-card').getBoundingClientRect();
+  tooltip.style.display = 'block';
+  let left = evt.clientX - cardRect.left + 16;
+  if(left > cardRect.width - 140) left = evt.clientX - cardRect.left - 150;
+  tooltip.style.left = left + 'px';
+  tooltip.style.top = (evt.clientY - cardRect.top - 14) + 'px';
+
+  const p = history[idx];
+  const d = new Date(p.ts * 1000);
+  const timeLabel = currentRangeHours > 24
+    ? d.toLocaleString('ru-RU', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'})
+    : d.toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'});
+  tooltip.innerHTML = `<b>${fmt(p.players)}</b> игроков<div class="tt-time">${timeLabel}</div>`;
+}
+
+function onChartLeave(){
+  const hoverLayer = document.getElementById('hoverLayer');
+  if(hoverLayer) hoverLayer.innerHTML = '';
+  document.getElementById('chartTooltip').style.display = 'none';
+}
+
+let hoverAttached = false;
+function attachChartHoverOnce(){
+  if(hoverAttached) return;
+  hoverAttached = true;
+  const svg = document.getElementById('chartSvg');
+  svg.addEventListener('mousemove', onChartMove);
+  svg.addEventListener('mouseleave', onChartLeave);
+  svg.addEventListener('touchmove', e=>{
+    if(e.touches && e.touches[0]) onChartMove(e.touches[0]);
+  }, {passive:true});
+}
+
 /* =========================================================
    РОУТИНГ
    ========================================================= */
+function parseRoute(){
+  const m = location.hash.match(/^#\/game\/([a-z]+)\/([^/]+)$/i);
+  if(m) return { view:'game', source:m[1], id:decodeURIComponent(m[2]) };
+  return { view:'list' };
+}
+
 function showList(){
   document.getElementById('detailView').style.display = 'none';
   document.getElementById('listView').style.display = 'block';
 }
 
 function handleRoute(){
-  const m = location.hash.match(/^#\/game\/([a-z]+)\/([^/]+)$/i);
-  if(m){ renderDetail(m[1], decodeURIComponent(m[2])); }
+  const r = parseRoute();
+  if(r.view === 'game'){ renderDetail(r.source, r.id); }
   else { showList(); renderAll(); }
 }
 window.addEventListener('hashchange', handleRoute);
@@ -599,7 +797,7 @@ document.getElementById('rangeTabs').addEventListener('click', e=>{
 });
 
 /* =========================================================
-   ИНИЦИАЛИЗАЦИЯ
+   ИНИЦИАЛИЗАЦИЯ + ГЛАВНЫЙ ЦИКЛ ОБНОВЛЕНИЯ
    ========================================================= */
 function tickClock(){ document.getElementById('clock').textContent = new Date().toLocaleTimeString('ru-RU'); }
 
@@ -611,9 +809,12 @@ async function init(){
   tickClock(); setInterval(tickClock, 1000);
   handleRoute();
 
+  // единый "пульс" — раз в 4 секунды двигает демо-данные и обновляет то, что видно сейчас
   setInterval(()=>{
-    if(!usingRealApi){ randomWalk(); }
-    if(!location.hash || location.hash === '#'){ renderAll(); }
+    if(!usingRealApi) randomWalk();
+    const r = parseRoute();
+    if(r.view === 'list'){ renderAll(); }
+    else { liveTickDetail(); renderTicker(); }
   }, 4000);
 }
 init();
