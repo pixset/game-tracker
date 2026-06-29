@@ -1,10 +1,14 @@
 """
 db.py — слой хранения данных.
 
-SQLite для старта (Railway Volume даёт persistent disk).
-При росте нагрузки меняется на Postgres почти без переписывания кода —
-запросы написаны на простом SQL без специфичных для SQLite функций,
-кроме strftime (есть аналог в Postgres).
+Ключевые изменения по сравнению с первой версией:
+- games.pinned — игры, которые трекаются ВСЕГДА (стартовый набор + добавленные
+  пользователями), даже если они выпали из топ-чарта Steam.
+- games.added_by — 'system' (обнаружена автоматически / стартовый набор) или
+  'user' (добавлена через форму на сайте) — это и есть "сохранено для всех":
+  как только игра попадает в эту таблицу на сервере, её видят все посетители.
+- app_names — кэш «appid → реальное название» из Steam GetAppList, чтобы не
+  дёргать дорогой store-API на каждую игру из чарта.
 """
 import sqlite3
 import time
@@ -31,40 +35,121 @@ def init_db():
         conn.executescript(
             """
             CREATE TABLE IF NOT EXISTS games (
-                source      TEXT NOT NULL,        -- 'steam' | 'roblox'
-                source_id   TEXT NOT NULL,        -- appid / universeId
+                source      TEXT NOT NULL,
+                source_id   TEXT NOT NULL,
                 name        TEXT NOT NULL,
                 image_url   TEXT,
+                pinned      INTEGER NOT NULL DEFAULT 0,
+                added_by    TEXT NOT NULL DEFAULT 'system',
                 PRIMARY KEY (source, source_id)
             );
 
             CREATE TABLE IF NOT EXISTS snapshots (
                 source      TEXT NOT NULL,
                 source_id   TEXT NOT NULL,
-                ts          INTEGER NOT NULL,     -- unix timestamp
+                ts          INTEGER NOT NULL,
                 players     INTEGER NOT NULL
             );
 
             CREATE INDEX IF NOT EXISTS idx_snap_game_ts
                 ON snapshots (source, source_id, ts);
+
+            CREATE TABLE IF NOT EXISTS app_names (
+                appid TEXT PRIMARY KEY,
+                name  TEXT NOT NULL
+            );
             """
         )
 
 
-def upsert_game(source: str, source_id: str, name: str, image_url: str | None = None):
+# ---------------------------------------------------------------- games ----
+def upsert_game(source, source_id, name, image_url=None, pinned=None, added_by=None):
+    """
+    pinned=None  -> не трогать существующее значение (или 0 при первой вставке)
+    pinned=True  -> закрепить (стартовый набор / добавлено пользователем)
+    """
     with get_conn() as conn:
-        conn.execute(
-            """
-            INSERT INTO games (source, source_id, name, image_url)
-            VALUES (?, ?, ?, ?)
-            ON CONFLICT(source, source_id) DO UPDATE SET
-                name = excluded.name,
-                image_url = COALESCE(excluded.image_url, games.image_url)
-            """,
-            (source, source_id, name, image_url),
+        existing = conn.execute(
+            "SELECT pinned FROM games WHERE source=? AND source_id=?",
+            (source, source_id),
+        ).fetchone()
+        if existing is None:
+            conn.execute(
+                """INSERT INTO games (source, source_id, name, image_url, pinned, added_by)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (source, source_id, name, image_url, 1 if pinned else 0, added_by or "system"),
+            )
+        elif pinned is not None:
+            conn.execute(
+                """UPDATE games SET name=?, image_url=COALESCE(?, image_url), pinned=?
+                   WHERE source=? AND source_id=?""",
+                (name, image_url, 1 if pinned else 0, source, source_id),
+            )
+        else:
+            conn.execute(
+                """UPDATE games SET name=?, image_url=COALESCE(?, image_url)
+                   WHERE source=? AND source_id=?""",
+                (name, image_url, source, source_id),
+            )
+
+
+def add_user_game(source, source_id, name, image_url=None):
+    """Добавление игры через форму на сайте — закрепляется навсегда и видна всем."""
+    upsert_game(source, source_id, name, image_url, pinned=True, added_by="user")
+
+
+def game_exists(source, source_id) -> bool:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT 1 FROM games WHERE source=? AND source_id=?", (source, source_id)
+        ).fetchone()
+        return row is not None
+
+
+def get_all_games(source: str):
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT source_id, name, image_url, pinned, added_by FROM games WHERE source=?",
+            (source,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_pinned_games(source: str):
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT source_id, name FROM games WHERE source=? AND pinned=1",
+            (source,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def seed_initial_games(steam_seed: list, roblox_seed: list):
+    for g in steam_seed:
+        upsert_game("steam", g["appid"], g["name"], pinned=True, added_by="system")
+    for g in roblox_seed:
+        upsert_game("roblox", g["universe_id"], g["name"], pinned=True, added_by="system")
+
+
+# ------------------------------------------------------------- app names ----
+def get_app_name(appid: str):
+    with get_conn() as conn:
+        row = conn.execute("SELECT name FROM app_names WHERE appid=?", (appid,)).fetchone()
+        return row["name"] if row else None
+
+
+def bulk_upsert_app_names(pairs: list[tuple[str, str]]):
+    if not pairs:
+        return
+    with get_conn() as conn:
+        conn.executemany(
+            "INSERT INTO app_names (appid, name) VALUES (?, ?) "
+            "ON CONFLICT(appid) DO UPDATE SET name=excluded.name",
+            pairs,
         )
 
 
+# ------------------------------------------------------------- snapshots ----
 def insert_snapshot(source: str, source_id: str, players: int, ts: int | None = None):
     ts = ts or int(time.time())
     with get_conn() as conn:
@@ -75,22 +160,18 @@ def insert_snapshot(source: str, source_id: str, players: int, ts: int | None = 
 
 
 def get_leaderboard(source: str | None = None, limit: int = 100):
-    """
-    Последний снэпшот по каждой игре, отсортированный по онлайну.
-    source: None/"all" — все источники, иначе "steam" или "roblox".
-    """
+    """Последний снэпшот по каждой игре, отсортированный по онлайну."""
     params: list = []
     where_clause = ""
     if source and source.lower() != "all":
         where_clause = "WHERE g.source = ?"
         params.append(source.lower())
-
     ts_join = "AND" if where_clause else "WHERE"
 
     with get_conn() as conn:
         rows = conn.execute(
             f"""
-            SELECT g.source, g.source_id, g.name, g.image_url,
+            SELECT g.source, g.source_id, g.name, g.image_url, g.added_by,
                    s.players, s.ts,
                    (SELECT players FROM snapshots s2
                     WHERE s2.source = g.source AND s2.source_id = g.source_id
@@ -114,17 +195,13 @@ def get_leaderboard(source: str | None = None, limit: int = 100):
                 "source": r["source"].upper(),
                 "name": r["name"],
                 "image": r["image_url"],
+                "added_by": r["added_by"],
                 "current": r["players"],
                 "delta": (r["players"] - r["prev_players"]) if r["prev_players"] is not None else 0,
                 "ts": r["ts"],
             }
             for r in rows
         ]
-
-
-def get_top10():
-    """Обёртка для обратной совместимости (используется лишь по умолчанию)."""
-    return get_leaderboard(None, 10)
 
 
 def get_game_history(source: str, source_id: str, hours: int = 24):
@@ -151,9 +228,7 @@ def get_game_stats(source: str, source_id: str):
 
         agg = conn.execute(
             """
-            SELECT MAX(players) AS peak_all_time,
-                   AVG(players) AS avg_all_time,
-                   COUNT(*) AS samples
+            SELECT MAX(players) AS peak_all_time, AVG(players) AS avg_all_time, COUNT(*) AS samples
             FROM snapshots WHERE source = ? AND source_id = ?
             """,
             (source, source_id),
@@ -182,6 +257,7 @@ def get_game_stats(source: str, source_id: str):
             "id": source_id,
             "name": game["name"],
             "image": game["image_url"],
+            "added_by": game["added_by"],
             "current": latest["players"] if latest else None,
             "last_update": latest["ts"] if latest else None,
             "peak_24h": agg_24h["peak_24h"],

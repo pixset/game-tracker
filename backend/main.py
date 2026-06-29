@@ -2,25 +2,32 @@
 main.py — точка входа FastAPI.
 
 Запуск локально:   uvicorn main:app --reload --port 8000
-Деплой на Railway:  Procfile/start command: uvicorn main:app --host 0.0.0.0 --port $PORT
+Деплой на Railway:  uvicorn main:app --host 0.0.0.0 --port $PORT
 """
 import asyncio
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+import httpx
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 import db
-from collector import collector_loop
+from collector import collector_loop, verify_and_fetch_roblox, verify_and_fetch_steam
 
 logging.basicConfig(level=logging.INFO)
 
 COLLECT_INTERVAL_SECONDS = 60
 FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
+
+
+class AddGameRequest(BaseModel):
+    source: str          # "steam" | "roblox"
+    source_id: str        # appid или universeId
 
 
 class ConnectionManager:
@@ -34,7 +41,7 @@ class ConnectionManager:
     def disconnect(self, ws: WebSocket):
         self.active.discard(ws)
 
-    async def broadcast_top10(self):
+    async def broadcast_leaderboard(self):
         if not self.active:
             return
         payload = db.get_leaderboard(None, 1000)
@@ -52,10 +59,9 @@ manager = ConnectionManager()
 
 
 async def broadcast_loop():
-    """Каждые несколько секунд проталкивает текущий топ-10 всем подключённым клиентам."""
     while True:
         await asyncio.sleep(5)
-        await manager.broadcast_top10()
+        await manager.broadcast_leaderboard()
 
 
 @asynccontextmanager
@@ -68,7 +74,7 @@ async def lifespan(app: FastAPI):
     broadcast_task.cancel()
 
 
-app = FastAPI(title="Pulse.GG API", lifespan=lifespan)
+app = FastAPI(title="Game Tracker API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -76,11 +82,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-@app.get("/api/top10")
-def top10():
-    return db.get_leaderboard(None, 10)
 
 
 @app.get("/api/top")
@@ -93,7 +94,7 @@ def top(source: str = "all", limit: int = 100):
 def game_stats(source: str, source_id: str):
     stats = db.get_game_stats(source, source_id)
     if not stats:
-        return {"error": "game not found"}
+        raise HTTPException(status_code=404, detail="game not found")
     return stats
 
 
@@ -102,19 +103,78 @@ def game_history(source: str, source_id: str, hours: int = 24):
     return db.get_game_history(source, source_id, hours)
 
 
+@app.get("/api/compare")
+async def compare(games: str, hours: int = 24):
+    """
+    games — список вида "steam:730,steam:570,roblox:920587237" (максимум 3).
+    """
+    pairs = []
+    for token in games.split(","):
+        token = token.strip()
+        if not token or ":" not in token:
+            continue
+        source, source_id = token.split(":", 1)
+        pairs.append((source.strip().lower(), source_id.strip()))
+    pairs = pairs[:3]
+
+    result = []
+    for source, source_id in pairs:
+        stats = db.get_game_stats(source, source_id)
+        history = db.get_game_history(source, source_id, hours)
+        if stats:
+            result.append({**stats, "history": history})
+        else:
+            result.append({
+                "source": source.upper(), "id": source_id,
+                "name": f"{source}:{source_id}", "image": None,
+                "current": None, "history": history,
+            })
+    return result
+
+
+@app.post("/api/games/add")
+async def add_game(body: AddGameRequest):
+    source = body.source.strip().lower()
+    source_id = body.source_id.strip()
+    if source not in ("steam", "roblox"):
+        raise HTTPException(status_code=400, detail="source должен быть 'steam' или 'roblox'")
+    if not source_id:
+        raise HTTPException(status_code=400, detail="не указан id игры")
+
+    async with httpx.AsyncClient() as client:
+        if source == "steam":
+            result = await verify_and_fetch_steam(client, source_id)
+        else:
+            result = await verify_and_fetch_roblox(client, source_id)
+
+    if result is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Не удалось найти такую игру через публичный API. Проверь ID/ссылку и попробуй снова.",
+        )
+
+    resolved_id = result["id"]
+    db.add_user_game(source, resolved_id, result["name"], result["image"])
+    db.insert_snapshot(source, resolved_id, result["players"])
+    await manager.broadcast_leaderboard()
+
+    return {
+        "source": source.upper(), "id": resolved_id,
+        "name": result["name"], "image": result["image"], "current": result["players"],
+    }
+
+
 @app.websocket("/ws")
 async def ws_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
     try:
-        # сразу шлём текущий снэпшот при подключении
         await websocket.send_json(db.get_leaderboard(None, 1000))
         while True:
-            await websocket.receive_text()  # держим соединение живым (ping/pong от клиента)
+            await websocket.receive_text()
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 
 
-# --- Отдаём статический фронтенд той же службой (удобно для Railway: один процесс) ---
 if FRONTEND_DIR.exists():
     app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
 
