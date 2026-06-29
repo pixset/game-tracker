@@ -340,6 +340,18 @@
    СОСТОЯНИЕ. Никаких мок-данных — leaderboard заполняется
    ТОЛЬКО реальными ответами backend.
    ========================================================= */
+/* =========================================================
+   АДРЕС BACKEND.
+   Указываем явно, а не относительным путём — так фронтенд можно
+   открыть откуда угодно (даже как локальный файл или с другого
+   домена) и он всё равно будет стучаться в твой backend на Railway.
+   Порт НЕ указываем: публичный домен Railway сам слушает на 443
+   (https/wss) и проксирует внутрь на контейнерный порт (8080) —
+   указывать ":8080" в публичном адресе не нужно и не будет работать.
+   ========================================================= */
+const API_BASE = 'https://game-tracker-production-16ef.up.railway.app';
+const WS_BASE = API_BASE.replace(/^http/, 'ws');
+
 let leaderboard = [];
 let isOnline = false;
 let ws = null;
@@ -394,8 +406,7 @@ function setOnline(online){
 
 function connectWS(){
   try{
-    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-    ws = new WebSocket(`${proto}://${location.host}/ws`);
+    ws = new WebSocket(`${WS_BASE}/ws`);
     ws.onopen = () => setOnline(true);
     ws.onmessage = (ev) => {
       try{
@@ -617,7 +628,7 @@ function buildChartSvg(svgEl, history, color){
 }
 
 async function renderChart(source, id){
-  const real = await tryFetch(`/api/games/${source}/${id}/history?hours=${currentRangeHours}`);
+  const real = await tryFetch(`${API_BASE}/api/games/${source}/${id}/history?hours=${currentRangeHours}`);
   const history = (real && Array.isArray(real)) ? real : [];
   const svg = document.getElementById('chartSvg');
   svg.innerHTML = buildChartSvg(svg, history, 'var(--signal)'.startsWith('var') ? '#4dd8e8' : '#4dd8e8');
@@ -641,7 +652,7 @@ async function renderDetail(source, id){
   document.getElementById('compareView').style.display = 'none';
   document.getElementById('detailView').style.display = 'block';
 
-  const stats = await tryFetch(`/api/games/${source}/${id}`);
+  const stats = await tryFetch(`${API_BASE}/api/games/${source}/${id}`);
   if(!stats || stats.__error){
     currentGame = {source: source.toUpperCase(), id, name: 'Игра не найдена', current: null};
     document.getElementById('dName').textContent = isOnline ? 'Игра не найдена' : 'Backend не подключён';
@@ -679,7 +690,7 @@ function flashEl(id){
 async function refreshDetail(){
   if(!currentGame || parseRoute().view !== 'game') return;
   const { source, id } = parseRoute();
-  const stats = await tryFetch(`/api/games/${source}/${id}`);
+  const stats = await tryFetch(`${API_BASE}/api/games/${source}/${id}`);
   if(!stats || stats.__error) return;
   if(currentGame.current !== stats.current){
     document.getElementById('statCurrent').textContent = fmt(stats.current);
@@ -756,7 +767,7 @@ async function renderCompareView(token){
 
   const pairs = parseCompareToken(token);
   const gamesParam = pairs.map(p=>`${p.source}:${p.id}`).join(',');
-  const data = await tryFetch(`/api/compare?games=${encodeURIComponent(gamesParam)}&hours=${compareRangeHours}`);
+  const data = await tryFetch(`${API_BASE}/api/compare?games=${encodeURIComponent(gamesParam)}&hours=${compareRangeHours}`);
 
   if(!data || data.__error || !Array.isArray(data)){
     document.getElementById('compareLegend').innerHTML = `<div class="empty-state">${isOnline ? 'Не удалось загрузить данные для сравнения.' : 'Backend не подключён — сравнение работает только с реальным сервером.'}</div>`;
@@ -973,7 +984,7 @@ document.getElementById('addSubmitBtn').addEventListener('click', async ()=>{
   }
 
   try{
-    const res = await fetch('/api/games/add', {
+    const res = await fetch(`${API_BASE}/api/games/add`, {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({source, source_id: sourceId}),
     });
@@ -1052,7 +1063,7 @@ document.getElementById('rangeTabs').addEventListener('click', e=>{
 function tickClock(){ document.getElementById('clock').textContent = new Date().toLocaleTimeString('ru-RU'); }
 
 async function init(){
-  const real = await tryFetch('/api/top?source=all&limit=1000');
+  const real = await tryFetch(`${API_BASE}/api/top?source=all&limit=1000`);
   if(real && Array.isArray(real)){
     leaderboard = real;
     setOnline(true);
