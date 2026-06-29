@@ -38,6 +38,7 @@ STEAM_API_KEY = os.environ.get("STEAM_API_KEY")  # опционально, см.
 STEAM_PLAYERS_URL = "https://api.steampowered.com/ISteamUserStats/GetNumberOfCurrentPlayers/v1/"
 STEAM_CHART_URL = "https://api.steampowered.com/ISteamChartsService/GetGamesByConcurrentPlayers/v1/"
 STEAM_APPLIST_URL = "https://api.steampowered.com/ISteamApps/GetAppList/v2/"
+STEAM_APPLIST_FALLBACK_URL = "https://api.steampowered.com/IStoreService/GetAppList/v1/"
 STEAM_HEADER_IMG = "https://cdn.cloudflare.steamstatic.com/steam/apps/{appid}/header.jpg"
 
 ROBLOX_URL = "https://games.roblox.com/v1/games"
@@ -90,19 +91,36 @@ async def fetch_steam_chart(client: httpx.AsyncClient, max_games: int = 1000) ->
         return []
 
 
-async def refresh_app_names(client: httpx.AsyncClient):
-    """GetAppList — реальные названия для ВСЕХ appid одним запросом. Кэшируется в БД."""
+async def refresh_app_names(client: httpx.AsyncClient) -> bool:
+    """
+    GetAppList — реальные названия для ВСЕХ appid одним запросом. Кэшируется в БД.
+    Возвращает True/False — нужно, чтобы collector_loop мог чаще ретраить,
+    если этот вызов временно недоступен (см. лог: бывает 404 от Valve).
+    """
     global _app_names_loaded
-    try:
-        r = await client.get(STEAM_APPLIST_URL, params=_with_key({}), timeout=30)
-        r.raise_for_status()
-        apps = r.json().get("applist", {}).get("apps", [])
-        pairs = [(str(a["appid"]), a["name"]) for a in apps if a.get("name")]
-        db.bulk_upsert_app_names(pairs)
-        _app_names_loaded = True
-        logger.info(f"app_names: загружено {len(pairs)} названий")
-    except Exception as e:
-        logger.warning(f"refresh_app_names failed: {e}")
+
+    async def _try(url: str) -> bool:
+        try:
+            r = await client.get(url, params=_with_key({}), timeout=30)
+            r.raise_for_status()
+            apps = r.json().get("applist", {}).get("apps", [])
+            pairs = [(str(a["appid"]), a["name"]) for a in apps if a.get("name")]
+            if not pairs:
+                return False
+            db.bulk_upsert_app_names(pairs)
+            logger.info(f"app_names: загружено {len(pairs)} названий ({url})")
+            return True
+        except Exception as e:
+            logger.warning(f"refresh_app_names failed для {url}: {e}")
+            return False
+
+    ok = await _try(STEAM_APPLIST_URL)
+    if not ok:
+        # запасной вариант — иногда основной эндпоинт временно недоступен (404)
+        ok = await _try(STEAM_APPLIST_FALLBACK_URL)
+
+    _app_names_loaded = ok
+    return ok
 
 
 async def fetch_steam_players(client: httpx.AsyncClient, appid: str) -> int | None:
@@ -255,9 +273,15 @@ async def collector_loop(interval_seconds: int = 60):
     db.init_db()
     db.seed_initial_games(STEAM_GAMES, ROBLOX_GAMES)
 
+    # подсеиваем названия из стартового списка сразу — на случай, если
+    # GetAppList временно недоступен (видели 404 в логах), эти игры всё
+    # равно покажутся с настоящим названием, а не "Steam App #730"
+    db.bulk_upsert_app_names([(g["appid"], g["name"]) for g in STEAM_GAMES])
+
     cycles = 0
+    names_loaded = False
     async with httpx.AsyncClient() as client:
-        await refresh_app_names(client)  # один раз при старте
+        names_loaded = await refresh_app_names(client)
 
     while True:
         try:
@@ -266,9 +290,10 @@ async def collector_loop(interval_seconds: int = 60):
             logger.exception(f"collector loop error: {e}")
 
         cycles += 1
-        # обновляем кэш названий Steam-игр раз в сутки (примерно)
-        if cycles % max(1, (24 * 3600) // interval_seconds) == 0:
+        daily_cycles = max(1, (24 * 3600) // interval_seconds)
+        # пока названия так и не загрузились — пробуем КАЖДЫЙ цикл, а не раз в сутки
+        if not names_loaded or cycles % daily_cycles == 0:
             async with httpx.AsyncClient() as client:
-                await refresh_app_names(client)
+                names_loaded = await refresh_app_names(client)
 
         await asyncio.sleep(interval_seconds)
