@@ -8,16 +8,9 @@
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg: #0a0d10;
-    --panel: #11161b;
-    --panel-2: #161c22;
-    --line: #232b32;
-    --text: #d9e2e8;
-    --text-dim: #7c8a94;
-    --up: #3ddc84;
-    --down: #ff7a59;
-    --signal: #4dd8e8;
-    --amber: #ffb454;
+    --bg:#0a0d10; --panel:#11161b; --panel-2:#161c22; --line:#232b32;
+    --text:#d9e2e8; --text-dim:#7c8a94;
+    --up:#3ddc84; --down:#ff7a59; --signal:#4dd8e8; --amber:#ffb454; --violet:#b48cff;
   }
   *{margin:0;padding:0;box-sizing:border-box;}
   html,body{ background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased; }
@@ -25,57 +18,56 @@
   button{ font-family:inherit; }
   a{ color:inherit; text-decoration:none; }
 
-  /* ---------- TICKER ---------- */
-  .ticker-wrap{ border-bottom:1px solid var(--line); background:var(--panel); overflow:hidden; white-space:nowrap; position:relative; height:38px; display:flex; align-items:center; }
-  .ticker-wrap::before, .ticker-wrap::after{ content:""; position:absolute; top:0; bottom:0; width:60px; z-index:2; pointer-events:none; }
-  .ticker-wrap::before{ left:0; background:linear-gradient(90deg, var(--panel), transparent); }
-  .ticker-wrap::after{ right:0; background:linear-gradient(270deg, var(--panel), transparent); }
-  .ticker-track{ display:inline-flex; gap:36px; padding-left:36px; animation: scroll 40s linear infinite; }
-  .ticker-wrap:hover .ticker-track{ animation-play-state: paused; }
+  .ticker-wrap{ border-bottom:1px solid var(--line); background:var(--panel); overflow:hidden; white-space:nowrap; position:relative; height:38px; display:none; align-items:center; }
+  .ticker-wrap.show{ display:flex; }
+  .ticker-wrap::before,.ticker-wrap::after{ content:""; position:absolute; top:0; bottom:0; width:60px; z-index:2; pointer-events:none; }
+  .ticker-wrap::before{ left:0; background:linear-gradient(90deg,var(--panel),transparent); }
+  .ticker-wrap::after{ right:0; background:linear-gradient(270deg,var(--panel),transparent); }
+  .ticker-track{ display:inline-flex; gap:36px; padding-left:36px; animation:scroll 40s linear infinite; }
+  .ticker-wrap:hover .ticker-track{ animation-play-state:paused; }
   @keyframes scroll{ from{transform:translateX(0);} to{transform:translateX(-50%);} }
   .tick-item{ font-size:12.5px; letter-spacing:.3px; display:flex; gap:8px; align-items:center; color:var(--text-dim);}
   .tick-item b{ color:var(--text); font-weight:600;}
   .tick-up{ color:var(--up); } .tick-down{ color:var(--down); }
 
-  /* ---------- HEADER ---------- */
   header{ padding:26px 40px 18px; display:flex; justify-content:space-between; align-items:flex-start; border-bottom:1px solid var(--line); flex-wrap:wrap; gap:14px;}
   .brand{ display:flex; align-items:center; gap:12px; }
   .dot{ width:9px;height:9px;border-radius:50%; background:var(--up); box-shadow:0 0 0 0 rgba(61,220,132,.6); animation:pulse 2s infinite; flex-shrink:0;}
+  .dot.off{ background:var(--text-dim); animation:none; }
   @keyframes pulse{ 0%{box-shadow:0 0 0 0 rgba(61,220,132,.55);} 70%{box-shadow:0 0 0 8px rgba(61,220,132,0);} 100%{box-shadow:0 0 0 0 rgba(61,220,132,0);} }
   .brand-title{ font-weight:800; font-size:19px; letter-spacing:-.2px; line-height:1.25; }
-  .right-meta{ text-align:right; display:flex; align-items:center; gap:16px; }
+  .right-meta{ text-align:right; display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
   .status-pill{ font-size:11px; font-weight:700; letter-spacing:.6px; padding:5px 10px; border-radius:20px; border:1px solid var(--line); }
   .status-pill.live{ color:var(--up); border-color:rgba(61,220,132,.35); background:rgba(61,220,132,.08);}
-  .status-pill.demo{ color:var(--amber); border-color:rgba(255,180,84,.35); background:rgba(255,180,84,.08);}
+  .status-pill.off{ color:var(--text-dim); border-color:var(--line); background:var(--panel);}
   .live-clock .label{ font-size:11px; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; }
   .live-clock .time{ font-size:17px; font-weight:600; }
+  .btn-primary{ background:var(--signal); color:#06222a; border:none; font-weight:700; font-size:13px; padding:10px 16px; border-radius:9px; cursor:pointer; }
+  .btn-primary:hover{ filter:brightness(1.08); }
+  .btn-ghost{ background:var(--panel); border:1px solid var(--line); color:var(--text); font-weight:600; font-size:13px; padding:10px 16px; border-radius:9px; cursor:pointer; }
 
-  /* ---------- HERO ---------- */
   .hero{ padding:36px 40px 6px; }
-  .hero h1{ font-size:30px; font-weight:800; letter-spacing:-0.5px; max-width:680px; line-height:1.18;}
+  .hero h1{ font-size:30px; font-weight:800; letter-spacing:-.5px; max-width:680px; line-height:1.18;}
   .hero h1 .acc{ color:var(--signal); }
-  .hero p{ color:var(--text-dim); margin-top:8px; max-width:560px; font-size:14px; line-height:1.5;}
+  .hero p{ color:var(--text-dim); margin-top:8px; max-width:600px; font-size:14px; line-height:1.5;}
 
   .stat-row{ display:flex; gap:14px; padding:26px 40px 6px; flex-wrap:wrap;}
   .stat-card{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px 20px; min-width:170px; flex:1; }
   .stat-card .label{ font-size:11px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.8px;}
   .stat-card .value{ font-size:24px; font-weight:700; margin-top:6px; }
 
-  /* ---------- GROWTH STRIP ---------- */
   .growth-strip{ padding:18px 40px 0; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
   .growth-label{ font-size:11px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.8px; margin-right:6px;}
   .growth-chip{ display:flex; align-items:center; gap:6px; background:var(--panel); border:1px solid var(--line); border-radius:20px; padding:6px 12px 6px 8px; font-size:12.5px; cursor:pointer; }
   .growth-chip:hover{ border-color:#2c363f; }
   .growth-chip .g-up{ color:var(--up); font-family:'JetBrains Mono',monospace; font-weight:600;}
 
-  /* ---------- FILTER BAR ---------- */
   .filter-bar{ padding:24px 40px 0; display:flex; gap:22px; flex-wrap:wrap; align-items:center; }
   .pill-group{ display:flex; gap:6px; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:4px; }
   .pill{ border:none; background:transparent; color:var(--text-dim); font-size:13px; font-weight:600; padding:7px 14px; border-radius:7px; cursor:pointer; transition:.15s; }
   .pill:hover{ color:var(--text); }
   .pill.active{ background:var(--panel-2); color:var(--text); box-shadow:inset 0 0 0 1px var(--line); }
-  .pill.active.src-steam{ color:var(--signal); }
-  .pill.active.src-roblox{ color:var(--amber); }
+  .pill.active.src-steam{ color:var(--signal); } .pill.active.src-roblox{ color:var(--amber); }
   .search-box{ position:relative; flex:1; min-width:180px; max-width:280px; }
   .search-box input{ width:100%; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:9px 12px 9px 32px; color:var(--text); font-size:13px; outline:none; }
   .search-box input:focus{ border-color:#33414b; }
@@ -83,7 +75,6 @@
   .star-filter{ display:flex; align-items:center; gap:6px; font-size:13px; color:var(--text-dim); cursor:pointer; user-select:none; padding:8px 12px; border:1px solid var(--line); border-radius:10px; background:var(--panel);}
   .star-filter.active{ color:var(--amber); border-color:rgba(255,180,84,.35); background:rgba(255,180,84,.08); }
 
-  /* ---------- THUMBNAILS (иконки игр) ---------- */
   .thumb{ position:relative; overflow:hidden; border-radius:6px; border:1px solid var(--line); flex-shrink:0; }
   .thumb::before{ content:attr(data-letter); position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; color:var(--text-dim); font-weight:700; font-size:13px; }
   .thumb img{ position:relative; z-index:1; width:100%; height:100%; object-fit:cover; display:block; }
@@ -93,32 +84,58 @@
   .thumb.detail-thumb{ width:56px; height:56px; }
   .thumb.detail-thumb::before{ font-size:20px; }
 
-  /* ---------- LIST ---------- */
-  .section{ padding:18px 40px 50px; }
+  .section{ padding:18px 40px 90px; }
   .section-head{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:14px;}
   .section-head h2{ font-size:14px; text-transform:uppercase; letter-spacing:1.2px; color:var(--text-dim); font-weight:700;}
   .section-head .ts{ font-size:11px; color:var(--text-dim);}
 
   .board{ border:1px solid var(--line); border-radius:12px; overflow:hidden; background:var(--panel); max-height:70vh; overflow-y:auto; }
-  .row{ display:grid; grid-template-columns: 36px 30px 44px 1fr 110px 90px 130px; align-items:center; padding:13px 16px; border-bottom:1px solid var(--line); transition:background .15s; cursor:pointer; }
+  .row{ display:grid; grid-template-columns: 32px 26px 26px 40px 1fr 110px 90px; align-items:center; padding:13px 16px; border-bottom:1px solid var(--line); transition:background .15s; cursor:pointer; gap:4px;}
   .row:hover{ background:var(--panel-2); }
   .row:last-child{ border-bottom:none; }
+  .row.compare-active{ box-shadow: inset 3px 0 0 var(--signal); }
   .rank{ font-family:'JetBrains Mono',monospace; color:var(--text-dim); font-size:13px;}
   .rank.top3{ color:var(--amber); font-weight:700;}
   .star-btn{ background:none; border:none; cursor:pointer; font-size:16px; color:var(--line); line-height:1; padding:4px; }
   .star-btn.active{ color:var(--amber); }
-  .game-name{ font-weight:600; font-size:14px; }
+  .cmp-check{ width:16px; height:16px; accent-color:var(--signal); cursor:pointer; }
+  .game-name{ font-weight:600; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .game-name .src{ font-size:11px; color:var(--text-dim); margin-left:8px; font-weight:400;}
+  .game-name .usertag{ font-size:10px; color:var(--signal); border:1px solid rgba(77,216,232,.3); border-radius:5px; padding:1px 5px; margin-left:6px; }
   .players{ font-family:'JetBrains Mono',monospace; font-size:14.5px; font-weight:600; text-align:right; }
   .delta{ font-family:'JetBrains Mono',monospace; font-size:12px; text-align:right; }
   .delta.up{ color:var(--up); } .delta.down{ color:var(--down); }
-  .spark{ width:110px; height:30px; }
-  .empty-state{ padding:50px 20px; text-align:center; color:var(--text-dim); font-size:13.5px; }
+  .empty-state{ padding:60px 30px; text-align:center; color:var(--text-dim); font-size:13.5px; line-height:1.7; max-width:520px; margin:0 auto; }
+  .empty-state b{ color:var(--text); }
+  .empty-state code{ background:var(--panel-2); padding:2px 6px; border-radius:5px; font-family:'JetBrains Mono',monospace; font-size:12px;}
 
   footer{ padding:30px 40px 60px; color:var(--text-dim); font-size:12px; border-top:1px solid var(--line); margin-top:10px;}
 
-  /* ---------- DETAIL VIEW ---------- */
-  .detail-view{ padding:30px 40px 60px; display:none; }
+  /* compare floating bar */
+  .compare-bar{ position:fixed; bottom:0; left:0; right:0; background:var(--panel); border-top:1px solid var(--line); padding:14px 40px; display:none; align-items:center; justify-content:space-between; gap:16px; z-index:20; flex-wrap:wrap;}
+  .compare-bar.show{ display:flex; }
+  .compare-chips{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .compare-chip{ display:flex; align-items:center; gap:6px; background:var(--panel-2); border:1px solid var(--line); border-radius:20px; padding:6px 8px 6px 12px; font-size:12.5px; }
+  .compare-chip button{ background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:14px; line-height:1; padding:2px;}
+
+  /* modal */
+  .modal-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:30; padding:20px;}
+  .modal-overlay.show{ display:flex; }
+  .modal{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:26px; width:100%; max-width:420px; }
+  .modal h3{ font-size:17px; font-weight:800; margin-bottom:6px; }
+  .modal p.hint{ color:var(--text-dim); font-size:12.5px; margin-bottom:18px; line-height:1.5; }
+  .modal label{ font-size:12px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.6px; display:block; margin-bottom:6px; margin-top:14px;}
+  .modal select, .modal input{ width:100%; background:var(--panel-2); border:1px solid var(--line); border-radius:9px; padding:10px 12px; color:var(--text); font-size:14px; outline:none; }
+  .modal select:focus, .modal input:focus{ border-color:#33414b; }
+  .modal-actions{ display:flex; gap:10px; margin-top:22px; }
+  .modal-msg{ font-size:12.5px; margin-top:12px; min-height:18px; }
+  .modal-msg.error{ color:var(--down); }
+  .modal-msg.success{ color:var(--up); }
+  .spinner{ display:inline-block; width:13px; height:13px; border:2px solid rgba(255,255,255,.25); border-top-color:currentColor; border-radius:50%; animation:spin .7s linear infinite; vertical-align:-2px; margin-right:6px;}
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  /* detail + compare views */
+  .detail-view, .compare-view{ padding:30px 40px 90px; display:none; }
   .back-link{ display:inline-flex; align-items:center; gap:6px; color:var(--text-dim); font-size:13px; margin-bottom:22px; cursor:pointer; }
   .back-link:hover{ color:var(--text); }
   .detail-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:20px; flex-wrap:wrap; margin-bottom:8px;}
@@ -133,47 +150,56 @@
   .detail-stats{ display:grid; grid-template-columns:repeat(6,1fr); gap:12px; margin:28px 0; }
   .dstat{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px 16px; }
   .dstat .label{ font-size:10.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.6px; }
-  .dstat .value{ font-family:'JetBrains Mono',monospace; font-size:19px; font-weight:700; margin-top:6px; transition: color .3s; }
+  .dstat .value{ font-family:'JetBrains Mono',monospace; font-size:19px; font-weight:700; margin-top:6px; transition:color .3s; }
   .dstat .value.current{ color:var(--up); }
   .dstat .value.flash{ color:var(--signal); }
 
-  .chart-card{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:20px 22px 10px; position:relative; }
-  .chart-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;}
+  .chart-card{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:20px 22px 14px; position:relative; }
+  .chart-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:10px;}
   .chart-head h3{ font-size:13px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.8px; font-weight:700; display:flex; align-items:center; gap:8px;}
   .live-tag{ font-size:10px; font-weight:700; color:var(--up); border:1px solid rgba(61,220,132,.35); background:rgba(61,220,132,.08); padding:2px 7px; border-radius:10px; letter-spacing:.5px; }
   .range-tabs{ display:flex; gap:4px; background:var(--panel-2); border:1px solid var(--line); border-radius:8px; padding:3px; }
   .range-tabs button{ border:none; background:transparent; color:var(--text-dim); font-size:12px; font-weight:600; padding:5px 11px; border-radius:6px; cursor:pointer; }
   .range-tabs button.active{ background:var(--bg); color:var(--signal); }
-  .chart-svg{ width:100%; height:240px; display:block; cursor:crosshair; }
+  .chart-svg{ width:100%; height:300px; display:block; cursor:crosshair; }
   .axis-label{ fill:var(--text-dim); font-size:10px; font-family:'JetBrains Mono',monospace; }
   .chart-hint{ font-size:11px; color:var(--text-dim); margin-top:4px; text-align:right; }
-  .chart-tooltip{
-    position:absolute; pointer-events:none; display:none; z-index:5;
-    background:var(--panel-2); border:1px solid var(--line); border-radius:8px;
-    padding:7px 11px; font-size:12px; white-space:nowrap; box-shadow:0 6px 18px rgba(0,0,0,.4);
-  }
-  .chart-tooltip b{ font-family:'JetBrains Mono',monospace; color:var(--signal); }
+  .chart-tooltip{ position:absolute; pointer-events:none; display:none; z-index:5; background:var(--panel-2); border:1px solid var(--line); border-radius:8px; padding:7px 11px; font-size:12px; white-space:nowrap; box-shadow:0 6px 18px rgba(0,0,0,.4); }
+  .chart-tooltip b{ font-family:'JetBrains Mono',monospace; }
   .chart-tooltip .tt-time{ color:var(--text-dim); font-size:11px; margin-top:2px; }
+  .chart-tooltip .tt-row{ display:flex; align-items:center; gap:6px; }
+  .tt-dot{ width:7px; height:7px; border-radius:50%; display:inline-block; }
+
+  .legend{ display:flex; gap:18px; flex-wrap:wrap; margin:14px 0 0; }
+  .legend-item{ display:flex; align-items:center; gap:7px; font-size:13px; }
+  .legend-dot{ width:9px; height:9px; border-radius:50%; }
+  .compare-table{ width:100%; border-collapse:collapse; margin-top:18px; }
+  .compare-table th, .compare-table td{ text-align:left; padding:10px 14px; border-bottom:1px solid var(--line); font-size:13px; }
+  .compare-table th{ color:var(--text-dim); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.5px; }
+  .compare-table td.mono{ font-family:'JetBrains Mono',monospace; }
+
+  .net-note{ font-size:11.5px; color:var(--text-dim); margin-top:6px; }
 
   @media(max-width:760px){
-    header,.hero,.stat-row,.section,.detail-view,.growth-strip,.filter-bar{ padding-left:18px; padding-right:18px; }
-    .row{ grid-template-columns: 24px 24px 36px 1fr 80px; }
-    .delta, .spark{ display:none; }
+    header,.hero,.stat-row,.section,.detail-view,.compare-view,.growth-strip,.filter-bar{ padding-left:18px; padding-right:18px; }
+    .row{ grid-template-columns: 22px 22px 22px 32px 1fr 76px; }
+    .delta{ display:none; }
     .detail-stats{ grid-template-columns:repeat(2,1fr); }
   }
 </style>
 </head>
 <body>
 
-  <div class="ticker-wrap"><div class="ticker-track" id="tickerTrack"></div></div>
+  <div class="ticker-wrap" id="tickerWrap"><div class="ticker-track" id="tickerTrack"></div></div>
 
   <header>
     <div class="brand">
-      <div class="dot"></div>
+      <div class="dot off" id="headerDot"></div>
       <div class="brand-title">Живой трекинг<br>онлайна игр</div>
     </div>
     <div class="right-meta">
-      <span class="status-pill demo" id="statusPill">DEMO</span>
+      <button class="btn-primary" id="openAddModalBtn">+ Добавить игру</button>
+      <span class="status-pill off" id="statusPill">OFFLINE</span>
       <div class="live-clock">
         <div class="label">МСК</div>
         <div class="time mono" id="clock">--:--:--</div>
@@ -185,11 +211,10 @@
   <div id="listView">
     <section class="hero">
       <h1>Кто играет <span class="acc">прямо сейчас</span></h1>
-      <p>Онлайн по играм Steam и Roblox в реальном времени: пики, средние значения и динамика по каждой игре.</p>
+      <p>Онлайн по играм Steam и Roblox в реальном времени. Без backend здесь принципиально не показывается ни одной цифры — никаких фейковых данных.</p>
     </section>
 
     <div class="stat-row" id="statRow"></div>
-
     <div class="growth-strip" id="growthStrip"></div>
 
     <div class="filter-bar">
@@ -213,21 +238,20 @@
     <section class="section">
       <div class="section-head">
         <h2 id="boardTitle">Топ-10 · все игры</h2>
-        <div class="ts" id="lastUpdate">обновлено только что</div>
+        <div class="ts" id="lastUpdate">—</div>
       </div>
       <div class="board" id="board"></div>
     </section>
 
     <footer>
-      <div class="mono">Источники данных: Steam Web API, Roblox Games API.</div>
-      <div style="margin-top:6px;">Демо-режим: ~300 игр сгенерированы для проверки фильтров и масштаба. После деплоя backend сайт переключится на живые цифры — см. README о расширении списка до всех игр Steam.</div>
+      <div class="mono">Источники данных: Steam Web API (топ — ISteamChartsService/GetGamesByConcurrentPlayers), Roblox Games API.</div>
+      <div style="margin-top:6px;">Этот файл — фронтенд. Реальные цифры появятся только когда он открыт через задеплоенный backend (см. README в архиве проекта).</div>
     </footer>
   </div>
 
   <!-- ====================== DETAIL VIEW ====================== -->
   <div class="detail-view" id="detailView">
-    <div class="back-link" id="backLink">← Назад к списку</div>
-
+    <div class="back-link" id="backLinkDetail">← Назад к списку</div>
     <div class="detail-head">
       <div class="detail-id">
         <div class="thumb detail-thumb" id="dThumb" data-letter="?"></div>
@@ -252,81 +276,76 @@
           <button data-h="720">30д</button>
         </div>
       </div>
-      <svg class="chart-svg" id="chartSvg" viewBox="0 0 800 240" preserveAspectRatio="none"></svg>
+      <svg class="chart-svg" id="chartSvg"></svg>
       <div class="chart-hint">Проведи курсором по графику, чтобы увидеть значение в моменте</div>
       <div class="chart-tooltip" id="chartTooltip"></div>
     </div>
   </div>
 
+  <!-- ====================== COMPARE VIEW ====================== -->
+  <div class="compare-view" id="compareView">
+    <div class="back-link" id="backLinkCompare">← Назад к списку</div>
+    <h1 style="font-size:24px;font-weight:800;margin-bottom:6px;">Сравнение игр</h1>
+    <div class="legend" id="compareLegend"></div>
+
+    <div class="chart-card" style="margin-top:18px;">
+      <div class="chart-head">
+        <h3>Онлайн во времени</h3>
+        <div class="range-tabs" id="compareRangeTabs">
+          <button data-h="24" class="active">24ч</button>
+          <button data-h="168">7д</button>
+          <button data-h="720">30д</button>
+        </div>
+      </div>
+      <svg class="chart-svg" id="compareSvg"></svg>
+      <div class="chart-hint">Проведи курсором по графику, чтобы увидеть значения всех игр в этот момент</div>
+      <div class="chart-tooltip" id="compareTooltip"></div>
+    </div>
+
+    <table class="compare-table" id="compareTable"></table>
+  </div>
+
+  <!-- ====================== COMPARE BAR ====================== -->
+  <div class="compare-bar" id="compareBar">
+    <div class="compare-chips" id="compareChips"></div>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <span class="net-note" id="compareCount">0/3 выбрано</span>
+      <button class="btn-ghost" id="compareClearBtn">Сбросить</button>
+      <button class="btn-primary" id="compareGoBtn" disabled>Сравнить →</button>
+    </div>
+  </div>
+
+  <!-- ====================== ADD GAME MODAL ====================== -->
+  <div class="modal-overlay" id="addModalOverlay">
+    <div class="modal">
+      <h3>Добавить игру</h3>
+      <p class="hint">Игра будет проверена через публичный API Steam/Roblox и, если найдётся, появится в общем списке для всех посетителей сайта.</p>
+      <label>Источник</label>
+      <select id="addSource">
+        <option value="steam">Steam</option>
+        <option value="roblox">Roblox</option>
+      </select>
+      <label id="addIdLabel">AppID или ссылка на страницу в Steam</label>
+      <input type="text" id="addIdInput" placeholder="например, 730 или ссылка на store.steampowered.com">
+      <div class="modal-msg" id="addMsg"></div>
+      <div class="modal-actions">
+        <button class="btn-ghost" id="addCancelBtn" style="flex:1;">Отмена</button>
+        <button class="btn-primary" id="addSubmitBtn" style="flex:1;">Добавить</button>
+      </div>
+    </div>
+  </div>
+
 <script>
 /* =========================================================
-   ОСНОВНОЙ НАБОР ИГР (узнаваемые названия + реальные Steam appid → реальные иконки)
+   СОСТОЯНИЕ. Никаких мок-данных — leaderboard заполняется
+   ТОЛЬКО реальными ответами backend.
    ========================================================= */
-const SEED_GAMES = [
-  {id:'730', source:'STEAM', name:'Counter-Strike 2', base: 950000},
-  {id:'570', source:'STEAM', name:'Dota 2', base: 520000},
-  {id:'578080', source:'STEAM', name:'PUBG: BATTLEGROUNDS', base: 410000},
-  {id:'1172470', source:'STEAM', name:'Apex Legends', base: 230000},
-  {id:'271590', source:'STEAM', name:'Grand Theft Auto V', base: 180000},
-  {id:'920587237', source:'ROBLOX', name:'Adopt Me!', base: 145000},
-  {id:'4067897211', source:'ROBLOX', name:'Brookhaven RP', base: 132000},
-  {id:'252490', source:'STEAM', name:'Rust', base: 98000},
-  {id:'1085660', source:'STEAM', name:'Destiny 2', base: 86000},
-  {id:'606849621', source:'ROBLOX', name:'Blox Fruits', base: 74000},
-  {id:'1245620', source:'STEAM', name:'Elden Ring', base: 61000},
-  {id:'4000', source:'STEAM', name:"Garry's Mod", base: 54000},
-  {id:'230410', source:'STEAM', name:'Warframe', base: 47000},
-  {id:'1091500', source:'STEAM', name:'Cyberpunk 2077', base: 41000},
-  {id:'359550', source:'STEAM', name:"Tom Clancy's Rainbow Six Siege", base: 38000},
-  {id:'1599340', source:'STEAM', name:'Lost Ark', base: 33000},
-  {id:'155066525', source:'ROBLOX', name:'Tower Defense Simulator', base: 28000},
-  {id:'105600', source:'STEAM', name:'Terraria', base: 24000},
-  {id:'322330', source:"STEAM", name:"Don't Starve Together", base: 19000},
-  {id:'920577014', source:'ROBLOX', name:'MeepCity', base: 15000},
-  {id:'440', source:'STEAM', name:'Team Fortress 2', base: 58000},
-  {id:'550', source:'STEAM', name:'Left 4 Dead 2', base: 18000},
-  {id:'620', source:'STEAM', name:'Portal 2', base: 9000},
-  {id:'8930', source:'STEAM', name:'Sid Meier\'s Civilization V', base: 12000},
-  {id:'289070', source:'STEAM', name:'Sid Meier\'s Civilization VI', base: 21000},
-  {id:'1158310', source:'STEAM', name:'Crusader Kings III', base: 16000},
-  {id:'394360', source:'STEAM', name:'Hearts of Iron IV', base: 14000},
-  {id:'489830', source:'STEAM', name:'The Elder Scrolls V: Skyrim SE', base: 36000},
-  {id:'814470', source:'STEAM', name:'Borderlands 3', base: 7000},
-  {id:'1517290', source:'STEAM', name:'Battlefield 2042', base: 22000},
-];
-
-/* =========================================================
-   ДОГЕНЕРАЦИЯ ДО ~300 ИГР — чтобы фильтры "Топ 100 / Топ 1000"
-   были осмысленными, а не показывали те же 20 строк.
-   В реальной системе это будет полный список Steam (GetAppList)
-   и каталог Roblox — см. README.
-   ========================================================= */
-const ADJ = ['Crimson','Frozen','Neon','Shadow','Iron','Lunar','Solar','Rusty','Velvet','Quantum','Silent','Broken','Golden','Toxic','Arcane','Feral','Hollow','Electric','Ancient','Drifting','Phantom','Savage','Crystal','Echo','Wild'];
-const NOUN = ['Outpost','Sentinel','Raiders','Horizon','Cartel','Wasteland','Arena','Citadel','Frontier','Syndicate','Abyss','Orbit','Rebellion','Vortex','Asylum','Empire','Drift','Legion','Refuge','Cascade','Bastion','Nexus','Reckoning','Foundry','Tide'];
-
-function generateSyntheticGames(count){
-  const out = [];
-  for(let i=0;i<count;i++){
-    const adj = ADJ[i % ADJ.length];
-    const noun = NOUN[(i*7 + 3) % NOUN.length];
-    const name = `${adj} ${noun}`;
-    const source = (i % 2 === 0) ? 'STEAM' : 'ROBLOX';
-    const id = source === 'STEAM' ? String(9000000 + i) : String(9100000000 + i);
-    const base = Math.round(40 + Math.random()*2600 + (count-i)*4);
-    out.push({id, source, name, base});
-  }
-  return out;
-}
-
-let leaderboard = [...SEED_GAMES, ...generateSyntheticGames(280)]
-  .map(g => ({...g, current: g.base, delta: Math.round((Math.random()-0.4)*g.base*0.02)}));
-
-let usingRealApi = false;
+let leaderboard = [];
+let isOnline = false;
 let ws = null;
+const state = { src:'all', limit:10, search:'', watchlistOnly:false };
+let compareSelection = []; // [{source,id,name}], максимум 3
 
-/* =========================================================
-   ИЗБРАННОЕ (localStorage)
-   ========================================================= */
 const watchKey = 'tracker_watchlist';
 function getWatchlist(){ try{ return JSON.parse(localStorage.getItem(watchKey)) || []; }catch(e){ return []; } }
 function isWatched(source,id){ return getWatchlist().includes(source+':'+id); }
@@ -337,110 +356,66 @@ function toggleWatch(source,id){
   localStorage.setItem(watchKey, JSON.stringify(list));
 }
 
-const state = { src:'all', limit:10, search:'', watchlistOnly:false };
+function fmt(n){ return (n===null || n===undefined) ? '—' : Math.round(n).toLocaleString('ru-RU'); }
 
 /* =========================================================
-   ИКОНКИ ИГР
-   Steam: cdn.cloudflare.steamstatic.com отдаёт обложку по appid
-   публично, без ключа и без CORS-проблем для <img> — работает
-   даже в демо-режиме для настоящих appid.
-   Roblox: публичной статичной ссылки на иконку без вызова API нет,
-   поэтому показываем цветную плашку с первой буквой названия;
-   когда подключён реальный backend — он отдаёт image_url, добытый
-   через thumbnails.roblox.com на сервере, и тогда иконка показывается.
+   ИКОНКИ — только настоящие, без фолбэков на случайные картинки
    ========================================================= */
 function thumbMarkup(game, sizeClass){
   const letter = (game.name || '?').trim().charAt(0).toUpperCase();
   const isRoblox = (game.source || '').toUpperCase() === 'ROBLOX';
   const srcClass = isRoblox ? 'src-roblox' : 'src-steam';
-  let imgUrl = game.image || null;
-  if(!imgUrl && !isRoblox){
-    imgUrl = `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.id}/header.jpg`;
-  }
+  const imgUrl = game.image || null;
   const img = imgUrl ? `<img src="${imgUrl}" loading="lazy" onerror="this.style.display='none'">` : '';
   return `<div class="thumb ${srcClass} ${sizeClass}" data-letter="${letter}">${img}</div>`;
 }
-
 function fillDetailThumb(game){
   const el = document.getElementById('dThumb');
-  const letter = (game.name || '?').trim().charAt(0).toUpperCase();
   const isRoblox = (game.source || '').toUpperCase() === 'ROBLOX';
   el.className = 'thumb detail-thumb ' + (isRoblox ? 'src-roblox' : 'src-steam');
-  el.dataset.letter = letter;
-  let imgUrl = game.image || null;
-  if(!imgUrl && !isRoblox){
-    imgUrl = `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.id}/header.jpg`;
-  }
-  el.innerHTML = imgUrl ? `<img src="${imgUrl}" loading="lazy" onerror="this.style.display='none'">` : '';
+  el.dataset.letter = (game.name || '?').trim().charAt(0).toUpperCase();
+  el.innerHTML = game.image ? `<img src="${game.image}" loading="lazy" onerror="this.style.display='none'">` : '';
 }
 
 /* =========================================================
-   СЕТЬ: реальный API, иначе демо-блуждание
+   СЕТЬ
    ========================================================= */
-function fmt(n){ return Math.round(n).toLocaleString('ru-RU'); }
+async function tryFetch(url, opts){
+  try{ const r = await fetch(url, {...opts, signal: AbortSignal.timeout(6000)}); if(r.ok) return await r.json(); return {__error: await r.json().catch(()=>({detail:'Ошибка сервера'}))}; }
+  catch(e){ return null; }
+}
 
-function setStatus(live){
-  usingRealApi = live;
-  const pill = document.getElementById('statusPill');
-  pill.textContent = live ? 'LIVE' : 'DEMO';
-  pill.className = 'status-pill ' + (live ? 'live' : 'demo');
+function setOnline(online){
+  isOnline = online;
+  document.getElementById('statusPill').textContent = online ? 'LIVE' : 'OFFLINE';
+  document.getElementById('statusPill').className = 'status-pill ' + (online ? 'live' : 'off');
+  document.getElementById('headerDot').className = 'dot' + (online ? '' : ' off');
 }
 
 function connectWS(){
   try{
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     ws = new WebSocket(`${proto}://${location.host}/ws`);
-    ws.onopen = () => setStatus(true);
+    ws.onopen = () => setOnline(true);
     ws.onmessage = (ev) => {
       try{
         const data = JSON.parse(ev.data);
-        if(Array.isArray(data) && data.length){ leaderboard = data; onLeaderboardUpdate(); }
+        if(Array.isArray(data)){ leaderboard = data; onLeaderboardUpdate(); }
       }catch(e){}
     };
-    ws.onerror = () => setStatus(false);
-    ws.onclose = () => setStatus(false);
-  }catch(e){ setStatus(false); }
+    ws.onerror = () => setOnline(false);
+    ws.onclose = () => setOnline(false);
+  }catch(e){ setOnline(false); }
 }
 
-function randomWalk(){
-  leaderboard.forEach(g=>{
-    const prev = g.current;
-    const noise = (Math.random()-0.48) * g.base * 0.02;
-    g.current = Math.max(500, Math.round(g.current + noise));
-    g.delta = g.current - prev;
-  });
-}
-
-/* вызывается при каждом обновлении данных — обновляет всё, что видно сейчас */
 function onLeaderboardUpdate(){
-  const route = parseRoute();
-  if(route.view === 'list'){ renderAll(); }
-  else { liveTickDetail(); renderTicker(); }
+  const r = parseRoute();
+  if(r.view === 'list'){ renderAll(); }
+  renderTicker();
 }
 
 /* =========================================================
-   СПАРКЛАЙН / ТИКЕР
-   ========================================================= */
-function mockSeries(seedStr, points, currentValue){
-  let seed = 0; for(const c of String(seedStr)) seed = (seed*31 + c.charCodeAt(0)) >>> 0;
-  const rnd = () => { seed = (seed*1103515245 + 12345) >>> 0; return (seed % 1000)/1000; };
-  const out = []; let v = currentValue * (0.85 + rnd()*0.1);
-  for(let i=0;i<points;i++){ v = v + (rnd()-0.5)*currentValue*0.05; v = Math.max(currentValue*0.5, v); out.push({ts:i, players: Math.round(v)}); }
-  out[out.length-1].players = Math.round(currentValue);
-  return out;
-}
-
-function sparkSvg(seed, current){
-  const hist = mockSeries(seed, 30, current);
-  const vals = hist.map(p=>p.players);
-  const w=110,h=30; const min=Math.min(...vals), max=Math.max(...vals); const range=(max-min)||1;
-  const pts = vals.map((v,i)=>`${(i/(vals.length-1)*w).toFixed(1)},${(h-((v-min)/range)*h).toFixed(1)}`).join(' ');
-  const up = vals[vals.length-1] >= vals[0];
-  return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="${up?'#3ddc84':'#ff7a59'}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-}
-
-/* =========================================================
-   РЕНДЕР: СПИСОК
+   СПИСОК
    ========================================================= */
 function getFiltered(){
   let rows = [...leaderboard];
@@ -452,29 +427,52 @@ function getFiltered(){
 }
 
 function renderStatRow(rows){
+  const el = document.getElementById('statRow');
+  if(!isOnline || !leaderboard.length){ el.innerHTML=''; return; }
   const total = rows.reduce((a,g)=>a+g.current,0);
   const leader = rows[0];
-  document.getElementById('statRow').innerHTML = `
+  el.innerHTML = `
     <div class="stat-card"><div class="label">Суммарный онлайн в подборке</div><div class="value mono">${fmt(total)}</div></div>
     <div class="stat-card"><div class="label">Лидер сейчас</div><div class="value">${leader ? leader.name : '—'}</div></div>
     <div class="stat-card"><div class="label">Игр в подборке</div><div class="value mono">${rows.length} <span style="font-size:13px;color:var(--text-dim);">из ${leaderboard.length}</span></div></div>
-    <div class="stat-card"><div class="label">Источник данных</div><div class="value mono" style="font-size:17px;">${usingRealApi?'LIVE API':'MOCK FEED'}</div></div>
+    <div class="stat-card"><div class="label">Статус</div><div class="value mono" style="font-size:17px;color:var(--up);">LIVE API</div></div>
   `;
 }
 
 function renderGrowth(){
+  const el = document.getElementById('growthStrip');
+  if(!leaderboard.length){ el.innerHTML=''; return; }
   const top3 = [...leaderboard].sort((a,b)=>b.delta - a.delta).filter(g=>g.delta>0).slice(0,3);
-  if(!top3.length){ document.getElementById('growthStrip').innerHTML=''; return; }
-  document.getElementById('growthStrip').innerHTML = `<span class="growth-label">Растут быстрее всех</span>` +
+  if(!top3.length){ el.innerHTML=''; return; }
+  el.innerHTML = `<span class="growth-label">Растут быстрее всех</span>` +
     top3.map(g=>`<div class="growth-chip" data-source="${g.source}" data-id="${g.id}">${g.name} <span class="g-up">▲ ${fmt(g.delta)}</span></div>`).join('');
 }
 
 function renderTicker(){
+  const wrap = document.getElementById('tickerWrap');
+  if(!leaderboard.length){ wrap.classList.remove('show'); return; }
+  wrap.classList.add('show');
   const top = [...leaderboard].sort((a,b)=>b.current-a.current).slice(0,12);
   document.getElementById('tickerTrack').innerHTML = [...top, ...top].map(g=>{
     const up = g.delta >= 0;
     return `<div class="tick-item"><b>${g.name}</b> ${fmt(g.current)} <span class="${up?'tick-up':'tick-down'}">${up?'▲':'▼'}</span></div>`;
   }).join('');
+}
+
+function emptyStateHtml(){
+  if(!isOnline){
+    return `<div class="empty-state">
+      <b>Backend не подключён.</b><br><br>
+      Это статический фронтенд — он принципиально не показывает ни одной цифры,
+      пока не подключён к настоящему серверу со сборщиком данных.<br><br>
+      Чтобы увидеть живой онлайн: задеплой backend (например на Railway) и открой
+      сайт по адресу твоего сервера — см. <code>README.md</code> в проекте.
+    </div>`;
+  }
+  if(!leaderboard.length){
+    return `<div class="empty-state"><b>Backend на связи, но данных пока нет.</b><br><br>Сборщик опрашивает Steam/Roblox раз в минуту — первые цифры появятся в течение минуты после старта сервера.</div>`;
+  }
+  return `<div class="empty-state">Ничего не найдено с текущими фильтрами или поиском.</div>`;
 }
 
 function renderBoard(){
@@ -483,86 +481,101 @@ function renderBoard(){
 
   const srcLabel = state.src === 'all' ? 'все игры' : (state.src === 'steam' ? 'Steam' : 'Roblox');
   document.getElementById('boardTitle').textContent = `Топ-${Math.min(state.limit, rows.length || state.limit)} · ${srcLabel}`;
-  document.getElementById('lastUpdate').textContent = 'обновлено только что';
+  document.getElementById('lastUpdate').textContent = isOnline ? 'обновляется live' : 'нет соединения';
 
   const board = document.getElementById('board');
-  if(!rows.length){
-    board.innerHTML = `<div class="empty-state">Ничего не найдено. Попробуй изменить фильтры или запрос поиска.</div>`;
-    return;
-  }
+  if(!rows.length){ board.innerHTML = emptyStateHtml(); return; }
+
   board.innerHTML = rows.map((g,i)=>{
     const up = g.delta >= 0;
     const watched = isWatched(g.source, g.id);
+    const selected = compareSelection.some(s=>s.source===g.source && s.id===g.id);
+    const userTag = g.added_by === 'user' ? `<span class="usertag">добавлено игроком</span>` : '';
     return `
-    <div class="row" data-source="${g.source}" data-id="${g.id}">
+    <div class="row ${selected?'compare-active':''}" data-source="${g.source}" data-id="${g.id}" data-name="${g.name.replace(/"/g,'&quot;')}">
       <div class="rank ${i<3?'top3':''}">${String(i+1).padStart(2,'0')}</div>
+      <input type="checkbox" class="cmp-check" data-cmp="${g.source}:${g.id}" ${selected?'checked':''} title="Добавить к сравнению">
       <button class="star-btn ${watched?'active':''}" data-star="${g.source}:${g.id}">${watched?'★':'☆'}</button>
       ${thumbMarkup(g, 'row-thumb')}
-      <div class="game-name">${g.name}<span class="src">${g.source}</span></div>
+      <div class="game-name">${g.name}<span class="src">${g.source}</span>${userTag}</div>
       <div class="players">${fmt(g.current)}</div>
       <div class="delta ${up?'up':'down'}">${up?'▲':'▼'} ${fmt(Math.abs(g.delta))}</div>
-      ${sparkSvg(g.source+g.id, g.current)}
     </div>`;
   }).join('');
 }
 
-function renderAll(){
-  renderTicker();
-  renderGrowth();
-  renderBoard();
+function renderAll(){ renderTicker(); renderGrowth(); renderBoard(); }
+
+/* =========================================================
+   СРАВНЕНИЕ — выбор игр и плавающая панель
+   ========================================================= */
+const CMP_COLORS = ['#4dd8e8', '#ffb454', '#b48cff'];
+
+function toggleCompareSelect(source, id, name){
+  const idx = compareSelection.findIndex(s=>s.source===source && s.id===id);
+  if(idx >= 0){ compareSelection.splice(idx,1); }
+  else{
+    if(compareSelection.length >= 3) return false;
+    compareSelection.push({source, id, name});
+  }
+  renderCompareBar();
+  return true;
 }
+
+function renderCompareBar(){
+  const bar = document.getElementById('compareBar');
+  bar.classList.toggle('show', compareSelection.length > 0);
+  document.getElementById('compareChips').innerHTML = compareSelection.map((s,i)=>`
+    <div class="compare-chip"><span class="legend-dot" style="background:${CMP_COLORS[i]};display:inline-block;"></span>${s.name}<button data-remove="${s.source}:${s.id}">✕</button></div>
+  `).join('');
+  document.getElementById('compareCount').textContent = `${compareSelection.length}/3 выбрано`;
+  document.getElementById('compareGoBtn').disabled = compareSelection.length < 2;
+}
+
+document.getElementById('compareChips').addEventListener('click', e=>{
+  const btn = e.target.closest('[data-remove]'); if(!btn) return;
+  const [s,i] = btn.dataset.remove.split(':');
+  toggleCompareSelect(s,i,'');
+  renderBoard();
+});
+document.getElementById('compareClearBtn').addEventListener('click', ()=>{ compareSelection = []; renderCompareBar(); renderBoard(); });
+document.getElementById('compareGoBtn').addEventListener('click', ()=>{
+  if(compareSelection.length < 2) return;
+  const token = compareSelection.map(s=>`${s.source.toLowerCase()}:${s.id}`).join(',');
+  location.hash = `#/compare/${encodeURIComponent(token)}`;
+});
 
 /* =========================================================
    ДЕТАЛЬНАЯ СТРАНИЦА ИГРЫ
    ========================================================= */
-async function tryFetch(url){
-  try{ const r = await fetch(url, {signal: AbortSignal.timeout(1500)}); if(r.ok) return await r.json(); }catch(e){}
-  return null;
-}
-
-function mockStats(game){
-  const cur = game.current;
-  return {
-    current: cur,
-    peak_24h: Math.round(cur * (1.05 + Math.random()*0.12)),
-    avg_24h: Math.round(cur * (0.88 + Math.random()*0.08)),
-    peak_all_time: Math.round(cur * (1.15 + Math.random()*0.3)),
-    avg_all_time: Math.round(cur * (0.7 + Math.random()*0.1)),
-    samples: Math.round(2000 + Math.random()*8000),
-  };
-}
-
-function statsBlockHtml(stats){
-  return `
-    <div class="dstat"><div class="label">Сейчас</div><div class="value current mono" id="statCurrent">${fmt(stats.current)}</div></div>
-    <div class="dstat"><div class="label">Пик 24ч</div><div class="value mono" id="statPeak24">${fmt(stats.peak_24h)}</div></div>
-    <div class="dstat"><div class="label">Средний 24ч</div><div class="value mono">${fmt(stats.avg_24h)}</div></div>
-    <div class="dstat"><div class="label">Пик за всё время</div><div class="value mono" id="statPeakAll">${fmt(stats.peak_all_time)}</div></div>
-    <div class="dstat"><div class="label">Средний за всё время</div><div class="value mono">${fmt(stats.avg_all_time)}</div></div>
-    <div class="dstat"><div class="label">Замеров</div><div class="value mono">${fmt(stats.samples)}</div></div>
-  `;
-}
-
-function flashEl(id){
-  const el = document.getElementById(id);
-  if(!el) return;
-  el.classList.add('flash');
-  setTimeout(()=>el.classList.remove('flash'), 600);
-}
-
-/* ---- интерактивный график: состояние для hover-тултипа ---- */
-let chartMeta = null; // {history, xs, ys, padT, padB, h, w}
+let chartMeta = null;
 let currentRangeHours = 24;
 let currentGame = null;
 
-function buildChartSvg(history){
-  const w=800,h=240, padL=46, padB=24, padT=14, padR=10;
-  const vals = history.map(p=>p.players);
-  const min = Math.min(...vals), max = Math.max(...vals);
-  const range = (max-min) || 1;
+function measureSvgSize(svg, fallbackH){
+  const rect = svg.getBoundingClientRect();
+  const w = Math.max(280, Math.round(rect.width) || 760);
+  const h = fallbackH;
+  return {w, h};
+}
+
+function buildChartSvg(svgEl, history, color){
+  const {w, h} = measureSvgSize(svgEl, 300);
+  svgEl.setAttribute('viewBox', `0 0 ${w} ${h}`);
+
+  const padL=46, padB=24, padT=14, padR=10;
   const plotW = w-padL-padR, plotH = h-padT-padB;
 
-  const xOf = i => padL + (i/(history.length-1))*plotW;
+  if(!history.length){
+    chartMeta = null;
+    return `<text class="axis-label" x="${w/2}" y="${h/2}" text-anchor="middle">Нет данных за этот период</text>`;
+  }
+
+  const vals = history.map(p=>p.players);
+  const min = Math.min(...vals), max = Math.max(...vals);
+  const range = (max-min) || Math.max(1, max*0.1) || 1;
+
+  const xOf = i => padL + (history.length>1 ? (i/(history.length-1))*plotW : plotW/2);
   const yOf = v => padT + plotH - ((v-min)/range)*plotH;
 
   const xs = history.map((_,i)=>xOf(i));
@@ -585,124 +598,123 @@ function buildChartSvg(history){
   for(let i=0;i<tCount;i++){
     const idx = Math.round((history.length-1) * (i/(tCount-1)));
     const d = new Date(history[idx].ts*1000);
-    const label = history.length > 40
+    const label = currentRangeHours > 24
       ? d.toLocaleDateString('ru-RU', {day:'2-digit', month:'2-digit'})
       : d.toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'});
     xlabels += `<text class="axis-label" x="${xOf(idx).toFixed(1)}" y="${h-6}" text-anchor="middle">${label}</text>`;
   }
 
   return `
-    <defs>
-      <linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#4dd8e8" stop-opacity="0.25"/>
-        <stop offset="100%" stop-color="#4dd8e8" stop-opacity="0"/>
-      </linearGradient>
-    </defs>
+    <defs><linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${color}" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+    </linearGradient></defs>
     ${grid}${labels}${xlabels}
     <polygon points="${areaPts}" fill="url(#areaFill)"/>
-    <polyline points="${linePts}" fill="none" stroke="#4dd8e8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <polyline points="${linePts}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
     <g id="hoverLayer"></g>
   `;
 }
 
 async function renderChart(source, id){
-  const hours = currentRangeHours;
-  const real = await tryFetch(`/api/games/${source}/${id}/history?hours=${hours}`);
-  let history;
-  if(real && Array.isArray(real) && real.length > 1){
-    history = real;
-  } else {
-    const points = hours <= 24 ? 24 : (hours <= 168 ? 28 : 30);
-    const now = Math.floor(Date.now()/1000);
-    const step = (hours*3600)/points;
-    history = mockSeries(currentGame.source+currentGame.id+hours, points, currentGame.current)
-      .map((p,i)=>({ts: now - (points-1-i)*step, players: p.players}));
-  }
-  document.getElementById('chartSvg').innerHTML = buildChartSvg(history);
+  const real = await tryFetch(`/api/games/${source}/${id}/history?hours=${currentRangeHours}`);
+  const history = (real && Array.isArray(real)) ? real : [];
+  const svg = document.getElementById('chartSvg');
+  svg.innerHTML = buildChartSvg(svg, history, 'var(--signal)'.startsWith('var') ? '#4dd8e8' : '#4dd8e8');
 }
 
-function openDetail(source, id){
-  location.hash = `#/game/${source.toLowerCase()}/${id}`;
+function openDetail(source, id){ location.hash = `#/game/${source.toLowerCase()}/${id}`; }
+
+function statsBlockHtml(stats){
+  return `
+    <div class="dstat"><div class="label">Сейчас</div><div class="value current mono" id="statCurrent">${fmt(stats.current)}</div></div>
+    <div class="dstat"><div class="label">Пик 24ч</div><div class="value mono" id="statPeak24">${fmt(stats.peak_24h)}</div></div>
+    <div class="dstat"><div class="label">Средний 24ч</div><div class="value mono">${fmt(stats.avg_24h)}</div></div>
+    <div class="dstat"><div class="label">Пик за всё время</div><div class="value mono" id="statPeakAll">${fmt(stats.peak_all_time)}</div></div>
+    <div class="dstat"><div class="label">Средний за всё время</div><div class="value mono">${fmt(stats.avg_all_time)}</div></div>
+    <div class="dstat"><div class="label">Замеров</div><div class="value mono">${fmt(stats.samples)}</div></div>
+  `;
 }
 
 async function renderDetail(source, id){
   document.getElementById('listView').style.display = 'none';
+  document.getElementById('compareView').style.display = 'none';
   document.getElementById('detailView').style.display = 'block';
 
-  const local = leaderboard.find(g=>g.source.toLowerCase()===source.toLowerCase() && String(g.id)===String(id));
-  currentGame = local || {source: source.toUpperCase(), id, name: 'Игра', current: 10000, base: 10000, delta: 0};
+  const stats = await tryFetch(`/api/games/${source}/${id}`);
+  if(!stats || stats.__error){
+    currentGame = {source: source.toUpperCase(), id, name: 'Игра не найдена', current: null};
+    document.getElementById('dName').textContent = isOnline ? 'Игра не найдена' : 'Backend не подключён';
+    document.getElementById('dBadge').textContent = source.toUpperCase();
+    document.getElementById('detailStats').innerHTML = `<div class="empty-state" style="grid-column:1/-1;">${isOnline ? 'Нет данных по этой игре.' : 'Открой сайт через задеплоенный backend, чтобы увидеть статистику.'}</div>`;
+    document.getElementById('chartSvg').innerHTML = '';
+    return;
+  }
 
-  document.getElementById('dName').textContent = currentGame.name;
-  document.getElementById('dBadge').textContent = currentGame.source;
-  document.getElementById('dUpdated').textContent = 'обновлено только что';
-  fillDetailThumb(currentGame);
+  currentGame = stats;
+  document.getElementById('dName').textContent = stats.name;
+  document.getElementById('dBadge').textContent = stats.source;
+  document.getElementById('dUpdated').textContent = stats.last_update ? new Date(stats.last_update*1000).toLocaleTimeString('ru-RU') : '—';
+  fillDetailThumb(stats);
 
-  const watched = isWatched(currentGame.source, currentGame.id);
+  const watched = isWatched(stats.source, stats.id);
   const wb = document.getElementById('dWatchBtn');
   wb.textContent = watched ? '★ В избранном' : '★ В избранное';
   wb.className = 'watch-btn ' + (watched ? 'active' : '');
 
-  const real = await tryFetch(`/api/games/${source}/${id}`);
-  const stats = (real && !real.error) ? real : mockStats(currentGame);
-  currentGame.statsCache = stats;
-  document.getElementById('chartLiveTag').textContent = usingRealApi ? 'LIVE' : 'DEMO';
+  document.getElementById('chartLiveTag').textContent = isOnline ? 'LIVE' : 'OFFLINE';
   document.getElementById('detailStats').innerHTML = statsBlockHtml(stats);
 
   await renderChart(source, id);
   attachChartHoverOnce();
 }
 
-/* ---- "живое" обновление графика и карточек статистики, пока открыта страница игры ---- */
-function liveTickDetail(){
-  if(!currentGame) return;
-  const match = leaderboard.find(g=>g.source.toLowerCase()===currentGame.source.toLowerCase() && String(g.id)===String(currentGame.id));
-  if(match){ currentGame.current = match.current; currentGame.delta = match.delta; }
+function flashEl(id){
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.classList.add('flash');
+  setTimeout(()=>el.classList.remove('flash'), 600);
+}
 
-  if(currentGame.statsCache){
-    const c = currentGame.statsCache;
-    c.current = currentGame.current;
-    if(currentGame.current > c.peak_24h){ c.peak_24h = currentGame.current; flashEl('statPeak24'); }
-    if(currentGame.current > c.peak_all_time) c.peak_all_time = currentGame.current;
-    document.getElementById('statCurrent').textContent = fmt(c.current);
-    document.getElementById('statPeak24').textContent = fmt(c.peak_24h);
-    document.getElementById('statPeakAll').textContent = fmt(c.peak_all_time);
+async function refreshDetail(){
+  if(!currentGame || parseRoute().view !== 'game') return;
+  const { source, id } = parseRoute();
+  const stats = await tryFetch(`/api/games/${source}/${id}`);
+  if(!stats || stats.__error) return;
+  if(currentGame.current !== stats.current){
+    document.getElementById('statCurrent').textContent = fmt(stats.current);
     flashEl('statCurrent');
   }
-  renderChart(currentGame.source, currentGame.id);
+  if(stats.peak_24h !== currentGame.peak_24h){ document.getElementById('statPeak24').textContent = fmt(stats.peak_24h); flashEl('statPeak24'); }
+  if(stats.peak_all_time !== currentGame.peak_all_time){ document.getElementById('statPeakAll').textContent = fmt(stats.peak_all_time); flashEl('statPeakAll'); }
+  currentGame = stats;
+  await renderChart(source, id);
 }
 
-/* ---- наведение на график: вертикальная линия + точка + тултип со значением ---- */
+/* hover-тултип на одиночном графике */
 function svgPointFromEvent(svg, evt){
-  const pt = svg.createSVGPoint();
-  pt.x = evt.clientX; pt.y = evt.clientY;
+  const pt = svg.createSVGPoint(); pt.x = evt.clientX; pt.y = evt.clientY;
   return pt.matrixTransform(svg.getScreenCTM().inverse());
 }
-
 function onChartMove(evt){
   if(!chartMeta) return;
   const svg = document.getElementById('chartSvg');
   const loc = svgPointFromEvent(svg, evt);
   const { history, xs, ys, padT, padB } = chartMeta;
-
-  let idx = 0, best = Infinity;
-  for(let i=0;i<xs.length;i++){ const d = Math.abs(xs[i]-loc.x); if(d<best){ best=d; idx=i; } }
-
+  let idx=0, best=Infinity;
+  for(let i=0;i<xs.length;i++){ const d=Math.abs(xs[i]-loc.x); if(d<best){best=d;idx=i;} }
   const hoverLayer = document.getElementById('hoverLayer');
   if(hoverLayer){
-    hoverLayer.innerHTML = `
-      <line x1="${xs[idx]}" y1="${padT}" x2="${xs[idx]}" y2="${padB}" stroke="#33414b" stroke-width="1" stroke-dasharray="3,3"/>
-      <circle cx="${xs[idx]}" cy="${ys[idx]}" r="4.5" fill="#4dd8e8" stroke="#0a0d10" stroke-width="2"/>
-    `;
+    hoverLayer.innerHTML = `<line x1="${xs[idx]}" y1="${padT}" x2="${xs[idx]}" y2="${padB}" stroke="#33414b" stroke-width="1" stroke-dasharray="3,3"/>
+      <circle cx="${xs[idx]}" cy="${ys[idx]}" r="4.5" fill="#4dd8e8" stroke="#0a0d10" stroke-width="2"/>`;
   }
-
   const tooltip = document.getElementById('chartTooltip');
   const cardRect = svg.closest('.chart-card').getBoundingClientRect();
   tooltip.style.display = 'block';
   let left = evt.clientX - cardRect.left + 16;
-  if(left > cardRect.width - 140) left = evt.clientX - cardRect.left - 150;
+  if(left > cardRect.width - 150) left = evt.clientX - cardRect.left - 160;
   tooltip.style.left = left + 'px';
   tooltip.style.top = (evt.clientY - cardRect.top - 14) + 'px';
-
   const p = history[idx];
   const d = new Date(p.ts * 1000);
   const timeLabel = currentRangeHours > 24
@@ -710,48 +722,280 @@ function onChartMove(evt){
     : d.toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'});
   tooltip.innerHTML = `<b>${fmt(p.players)}</b> игроков<div class="tt-time">${timeLabel}</div>`;
 }
-
 function onChartLeave(){
   const hoverLayer = document.getElementById('hoverLayer');
   if(hoverLayer) hoverLayer.innerHTML = '';
   document.getElementById('chartTooltip').style.display = 'none';
 }
-
 let hoverAttached = false;
 function attachChartHoverOnce(){
-  if(hoverAttached) return;
-  hoverAttached = true;
+  if(hoverAttached) return; hoverAttached = true;
   const svg = document.getElementById('chartSvg');
   svg.addEventListener('mousemove', onChartMove);
   svg.addEventListener('mouseleave', onChartLeave);
-  svg.addEventListener('touchmove', e=>{
-    if(e.touches && e.touches[0]) onChartMove(e.touches[0]);
-  }, {passive:true});
 }
+
+/* =========================================================
+   СРАВНЕНИЕ ИГР — страница
+   ========================================================= */
+let compareMeta = null; // {series:[{name,color,xs,ys,history}], padT,padB}
+let compareRangeHours = 24;
+let compareGames = [];
+
+function parseCompareToken(token){
+  return decodeURIComponent(token).split(',').map(t=>{
+    const [source, id] = t.split(':');
+    return {source, id};
+  }).filter(x=>x.source && x.id).slice(0,3);
+}
+
+async function renderCompareView(token){
+  document.getElementById('listView').style.display = 'none';
+  document.getElementById('detailView').style.display = 'none';
+  document.getElementById('compareView').style.display = 'block';
+
+  const pairs = parseCompareToken(token);
+  const gamesParam = pairs.map(p=>`${p.source}:${p.id}`).join(',');
+  const data = await tryFetch(`/api/compare?games=${encodeURIComponent(gamesParam)}&hours=${compareRangeHours}`);
+
+  if(!data || data.__error || !Array.isArray(data)){
+    document.getElementById('compareLegend').innerHTML = `<div class="empty-state">${isOnline ? 'Не удалось загрузить данные для сравнения.' : 'Backend не подключён — сравнение работает только с реальным сервером.'}</div>`;
+    document.getElementById('compareSvg').innerHTML = '';
+    document.getElementById('compareTable').innerHTML = '';
+    return;
+  }
+
+  compareGames = data;
+  document.getElementById('compareLegend').innerHTML = data.map((g,i)=>`
+    <div class="legend-item"><span class="legend-dot" style="background:${CMP_COLORS[i]};"></span>${g.name} <span class="mono" style="color:var(--text-dim);">(${fmt(g.current)})</span></div>
+  `).join('');
+
+  buildCompareChart(data);
+
+  document.getElementById('compareTable').innerHTML = `
+    <tr><th>Игра</th><th>Сейчас</th><th>Пик 24ч</th><th>Средний 24ч</th><th>Пик за всё время</th></tr>
+    ${data.map((g,i)=>`
+      <tr>
+        <td><span class="legend-dot" style="background:${CMP_COLORS[i]};display:inline-block;margin-right:8px;"></span>${g.name}</td>
+        <td class="mono">${fmt(g.current)}</td>
+        <td class="mono">${fmt(g.peak_24h)}</td>
+        <td class="mono">${fmt(g.avg_24h)}</td>
+        <td class="mono">${fmt(g.peak_all_time)}</td>
+      </tr>`).join('')}
+  `;
+}
+
+function buildCompareChart(data){
+  const svg = document.getElementById('compareSvg');
+  const {w,h} = measureSvgSize(svg, 300);
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  const padL=46, padB=24, padT=14, padR=10;
+  const plotW=w-padL-padR, plotH=h-padT-padB;
+
+  const allVals = data.flatMap(g=>(g.history||[]).map(p=>p.players));
+  if(!allVals.length){
+    compareMeta = null;
+    svg.innerHTML = `<text class="axis-label" x="${w/2}" y="${h/2}" text-anchor="middle">Нет данных за этот период</text>`;
+    return;
+  }
+  const min = Math.min(...allVals), max = Math.max(...allVals);
+  const range = (max-min) || Math.max(1,max*0.1) || 1;
+
+  let maxLen = Math.max(...data.map(g=>(g.history||[]).length), 2);
+  const xOf = i => padL + (i/(maxLen-1))*plotW;
+  const yOf = v => padT + plotH - ((v-min)/range)*plotH;
+
+  let grid='', labels='';
+  for(let g=0; g<=3; g++){
+    const gy = padT + (plotH/3)*g;
+    const val = max - (range/3)*g;
+    grid += `<line x1="${padL}" y1="${gy.toFixed(1)}" x2="${padL+plotW}" y2="${gy.toFixed(1)}" stroke="#1c242b" stroke-width="1"/>`;
+    labels += `<text class="axis-label" x="4" y="${(gy+3).toFixed(1)}">${fmt(val)}</text>`;
+  }
+
+  const series = data.map((g,i)=>{
+    const hist = g.history || [];
+    const xs = hist.map((_,j)=>xOf(j));
+    const ys = hist.map(p=>yOf(p.players));
+    return { name:g.name, color:CMP_COLORS[i], history:hist, xs, ys };
+  });
+  compareMeta = { series, padT, padB:h-padB, w, h };
+
+  let xlabels = '';
+  const ref = series.find(s=>s.history.length>1) || series[0];
+  if(ref && ref.history.length){
+    for(let i=0;i<4;i++){
+      const idx = Math.round((ref.history.length-1)*(i/3));
+      const d = new Date(ref.history[idx].ts*1000);
+      const label = compareRangeHours > 24
+        ? d.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'})
+        : d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+      xlabels += `<text class="axis-label" x="${xOf(idx).toFixed(1)}" y="${h-6}" text-anchor="middle">${label}</text>`;
+    }
+  }
+
+  const lines = series.map(s=>{
+    const pts = s.xs.map((x,i)=>`${x.toFixed(1)},${s.ys[i].toFixed(1)}`).join(' ');
+    return `<polyline points="${pts}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
+  }).join('');
+
+  svg.innerHTML = `${grid}${labels}${xlabels}${lines}<g id="compareHoverLayer"></g>`;
+}
+
+function onCompareMove(evt){
+  if(!compareMeta || !compareMeta.series.length) return;
+  const svg = document.getElementById('compareSvg');
+  const pt = svg.createSVGPoint(); pt.x=evt.clientX; pt.y=evt.clientY;
+  const loc = pt.matrixTransform(svg.getScreenCTM().inverse());
+
+  const ref = compareMeta.series.reduce((a,b)=> (b.xs.length>a.xs.length?b:a), compareMeta.series[0]);
+  if(!ref.xs.length) return;
+  let idx=0, best=Infinity;
+  for(let i=0;i<ref.xs.length;i++){ const d=Math.abs(ref.xs[i]-loc.x); if(d<best){best=d;idx=i;} }
+
+  const hoverLayer = document.getElementById('compareHoverLayer');
+  let dots = `<line x1="${ref.xs[idx]}" y1="${compareMeta.padT}" x2="${ref.xs[idx]}" y2="${compareMeta.padB}" stroke="#33414b" stroke-width="1" stroke-dasharray="3,3"/>`;
+  let rowsHtml = '';
+  compareMeta.series.forEach(s=>{
+    const i = Math.min(idx, s.history.length-1);
+    if(i<0 || !s.history.length) return;
+    dots += `<circle cx="${s.xs[i]}" cy="${s.ys[i]}" r="4.5" fill="${s.color}" stroke="#0a0d10" stroke-width="2"/>`;
+    rowsHtml += `<div class="tt-row"><span class="tt-dot" style="background:${s.color};"></span><b>${fmt(s.history[i].players)}</b> ${s.name}</div>`;
+  });
+  hoverLayer.innerHTML = dots;
+
+  const tooltip = document.getElementById('compareTooltip');
+  const cardRect = svg.closest('.chart-card').getBoundingClientRect();
+  tooltip.style.display = 'block';
+  let left = evt.clientX - cardRect.left + 16;
+  if(left > cardRect.width - 180) left = evt.clientX - cardRect.left - 190;
+  tooltip.style.left = left + 'px';
+  tooltip.style.top = (evt.clientY - cardRect.top - 10) + 'px';
+  tooltip.innerHTML = rowsHtml;
+}
+function onCompareLeave(){
+  const hl = document.getElementById('compareHoverLayer'); if(hl) hl.innerHTML='';
+  document.getElementById('compareTooltip').style.display = 'none';
+}
+let compareHoverAttached = false;
+function attachCompareHoverOnce(){
+  if(compareHoverAttached) return; compareHoverAttached = true;
+  const svg = document.getElementById('compareSvg');
+  svg.addEventListener('mousemove', onCompareMove);
+  svg.addEventListener('mouseleave', onCompareLeave);
+}
+
+document.getElementById('compareRangeTabs').addEventListener('click', e=>{
+  const btn = e.target.closest('button'); if(!btn) return;
+  document.querySelectorAll('#compareRangeTabs button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); compareRangeHours = parseInt(btn.dataset.h);
+  const m = location.hash.match(/^#\/compare\/(.+)$/); if(m) renderCompareView(m[1]);
+});
 
 /* =========================================================
    РОУТИНГ
    ========================================================= */
 function parseRoute(){
-  const m = location.hash.match(/^#\/game\/([a-z]+)\/([^/]+)$/i);
+  let m = location.hash.match(/^#\/game\/([a-z]+)\/([^/]+)$/i);
   if(m) return { view:'game', source:m[1], id:decodeURIComponent(m[2]) };
+  m = location.hash.match(/^#\/compare\/(.+)$/);
+  if(m) return { view:'compare', token:m[1] };
   return { view:'list' };
 }
-
 function showList(){
   document.getElementById('detailView').style.display = 'none';
+  document.getElementById('compareView').style.display = 'none';
   document.getElementById('listView').style.display = 'block';
 }
-
 function handleRoute(){
   const r = parseRoute();
   if(r.view === 'game'){ renderDetail(r.source, r.id); }
+  else if(r.view === 'compare'){ attachCompareHoverOnce(); renderCompareView(r.token); }
   else { showList(); renderAll(); }
 }
 window.addEventListener('hashchange', handleRoute);
+window.addEventListener('resize', ()=>{
+  const r = parseRoute();
+  if(r.view === 'game' && currentGame) renderChart(r.source, r.id);
+  if(r.view === 'compare' && compareGames.length) buildCompareChart(compareGames);
+});
 
 /* =========================================================
-   СОБЫТИЯ UI
+   ДОБАВЛЕНИЕ ИГРЫ
+   ========================================================= */
+function extractSteamAppId(input){
+  const m = input.match(/\/app\/(\d+)/); if(m) return m[1];
+  const d = input.match(/^\d+$/); return d ? d[0] : input.trim();
+}
+function extractRobloxId(input){
+  const m = input.match(/\/games\/(\d+)/); if(m) return m[1];
+  const d = input.match(/^\d+$/); return d ? d[0] : input.trim();
+}
+
+function openAddModal(){
+  document.getElementById('addModalOverlay').classList.add('show');
+  document.getElementById('addIdInput').value = '';
+  document.getElementById('addMsg').textContent = '';
+  document.getElementById('addMsg').className = 'modal-msg';
+}
+function closeAddModal(){ document.getElementById('addModalOverlay').classList.remove('show'); }
+
+document.getElementById('openAddModalBtn').addEventListener('click', openAddModal);
+document.getElementById('addCancelBtn').addEventListener('click', closeAddModal);
+document.getElementById('addModalOverlay').addEventListener('click', e=>{ if(e.target.id==='addModalOverlay') closeAddModal(); });
+
+document.getElementById('addSource').addEventListener('change', e=>{
+  document.getElementById('addIdLabel').textContent = e.target.value === 'steam'
+    ? 'AppID или ссылка на страницу в Steam'
+    : 'universeId, placeId или ссылка на игру в Roblox';
+  document.getElementById('addIdInput').placeholder = e.target.value === 'steam'
+    ? 'например, 730 или ссылка на store.steampowered.com'
+    : 'например, ссылка roblox.com/games/...';
+});
+
+document.getElementById('addSubmitBtn').addEventListener('click', async ()=>{
+  const source = document.getElementById('addSource').value;
+  const raw = document.getElementById('addIdInput').value.trim();
+  const msg = document.getElementById('addMsg');
+  if(!raw){ msg.textContent = 'Введи ID игры или ссылку'; msg.className='modal-msg error'; return; }
+
+  const sourceId = source === 'steam' ? extractSteamAppId(raw) : extractRobloxId(raw);
+  const btn = document.getElementById('addSubmitBtn');
+  btn.disabled = true;
+  msg.className = 'modal-msg';
+  msg.innerHTML = `<span class="spinner"></span>Проверяем через API ${source === 'steam' ? 'Steam' : 'Roblox'}…`;
+
+  if(!isOnline){
+    btn.disabled = false;
+    msg.textContent = 'Backend не подключён — добавление игр работает только с задеплоенным сервером.';
+    msg.className = 'modal-msg error';
+    return;
+  }
+
+  try{
+    const res = await fetch('/api/games/add', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({source, source_id: sourceId}),
+    });
+    const data = await res.json();
+    btn.disabled = false;
+    if(!res.ok){
+      msg.textContent = data.detail || 'Не удалось добавить игру.';
+      msg.className = 'modal-msg error';
+      return;
+    }
+    msg.textContent = `Добавлено: ${data.name} (${fmt(data.current)} онлайн прямо сейчас)`;
+    msg.className = 'modal-msg success';
+    setTimeout(closeAddModal, 1600);
+  }catch(e){
+    btn.disabled = false;
+    msg.textContent = 'Ошибка сети при обращении к backend.';
+    msg.className = 'modal-msg error';
+  }
+});
+
+/* =========================================================
+   СОБЫТИЯ UI СПИСКА
    ========================================================= */
 document.getElementById('sourceFilter').addEventListener('click', e=>{
   const btn = e.target.closest('[data-src]'); if(!btn) return;
@@ -771,10 +1015,15 @@ document.getElementById('watchlistFilter').addEventListener('click', e=>{
 });
 document.getElementById('board').addEventListener('click', e=>{
   const starBtn = e.target.closest('[data-star]');
-  if(starBtn){
+  if(starBtn){ e.stopPropagation(); const [s,i]=starBtn.dataset.star.split(':'); toggleWatch(s,i); renderBoard(); return; }
+  const cmpCheck = e.target.closest('[data-cmp]');
+  if(cmpCheck){
     e.stopPropagation();
-    const [s,i] = starBtn.dataset.star.split(':');
-    toggleWatch(s,i); renderBoard();
+    const [s,i] = cmpCheck.dataset.cmp.split(':');
+    const row = cmpCheck.closest('.row');
+    const ok = toggleCompareSelect(s, i, row.dataset.name);
+    if(!ok){ cmpCheck.checked = false; }
+    renderBoard();
     return;
   }
   const row = e.target.closest('.row'); if(!row) return;
@@ -784,7 +1033,8 @@ document.getElementById('growthStrip').addEventListener('click', e=>{
   const chip = e.target.closest('.growth-chip'); if(!chip) return;
   openDetail(chip.dataset.source, chip.dataset.id);
 });
-document.getElementById('backLink').addEventListener('click', ()=>{ location.hash = ''; });
+document.getElementById('backLinkDetail').addEventListener('click', ()=>{ location.hash=''; });
+document.getElementById('backLinkCompare').addEventListener('click', ()=>{ location.hash=''; });
 document.getElementById('dWatchBtn').addEventListener('click', ()=>{
   toggleWatch(currentGame.source, currentGame.id);
   renderDetail(currentGame.source, currentGame.id);
@@ -793,29 +1043,32 @@ document.getElementById('rangeTabs').addEventListener('click', e=>{
   const btn = e.target.closest('button'); if(!btn) return;
   document.querySelectorAll('#rangeTabs button').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active'); currentRangeHours = parseInt(btn.dataset.h);
-  renderChart(currentGame.source, currentGame.id);
+  renderChart(currentGame.source.toLowerCase(), currentGame.id);
 });
 
 /* =========================================================
-   ИНИЦИАЛИЗАЦИЯ + ГЛАВНЫЙ ЦИКЛ ОБНОВЛЕНИЯ
+   ИНИЦИАЛИЗАЦИЯ
    ========================================================= */
 function tickClock(){ document.getElementById('clock').textContent = new Date().toLocaleTimeString('ru-RU'); }
 
 async function init(){
   const real = await tryFetch('/api/top?source=all&limit=1000');
-  if(real && real.length){ leaderboard = real; setStatus(true); connectWS(); }
-  else { setStatus(false); }
+  if(real && Array.isArray(real)){
+    leaderboard = real;
+    setOnline(true);
+    connectWS();
+  } else {
+    setOnline(false);
+  }
 
   tickClock(); setInterval(tickClock, 1000);
   handleRoute();
 
-  // единый "пульс" — раз в 4 секунды двигает демо-данные и обновляет то, что видно сейчас
   setInterval(()=>{
-    if(!usingRealApi) randomWalk();
     const r = parseRoute();
-    if(r.view === 'list'){ renderAll(); }
-    else { liveTickDetail(); renderTicker(); }
-  }, 4000);
+    if(r.view === 'game') refreshDetail();
+    else if(r.view === 'compare') renderCompareView(r.token);
+  }, 8000);
 }
 init();
 </script>
