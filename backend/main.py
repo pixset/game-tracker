@@ -26,8 +26,21 @@ FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
 
 
 class AddGameRequest(BaseModel):
-    source: str          # "steam" | "roblox"
-    source_id: str        # appid или universeId
+    url: str   # полная ссылка на страницу игры
+
+
+def _extract_steam_appid(url: str) -> str | None:
+    """store.steampowered.com/app/730/... → '730'"""
+    import re
+    m = re.search(r'store\.steampowered\.com/app/(\d+)', url)
+    return m.group(1) if m else None
+
+
+def _extract_roblox_placeid(url: str) -> str | None:
+    """roblox.com/games/2753915549/... → '2753915549'"""
+    import re
+    m = re.search(r'roblox\.com/games/(\d+)', url)
+    return m.group(1) if m else None
 
 
 class ConnectionManager:
@@ -134,23 +147,33 @@ async def compare(games: str, hours: int = 24):
 
 @app.post("/api/games/add")
 async def add_game(body: AddGameRequest):
-    source = body.source.strip().lower()
-    source_id = body.source_id.strip()
-    if source not in ("steam", "roblox"):
-        raise HTTPException(status_code=400, detail="source должен быть 'steam' или 'roblox'")
-    if not source_id:
-        raise HTTPException(status_code=400, detail="не указан id игры")
+    url = body.url.strip()
+    if not url:
+        raise HTTPException(status_code=400, detail="Вставь ссылку на страницу игры в Steam или Roblox.")
+
+    # Определяем платформу по URL
+    steam_appid = _extract_steam_appid(url)
+    roblox_placeid = _extract_roblox_placeid(url)
+
+    if not steam_appid and not roblox_placeid:
+        raise HTTPException(
+            status_code=400,
+            detail="Не удалось распознать ссылку. Поддерживается: "
+                   "store.steampowered.com/app/... или roblox.com/games/...",
+        )
 
     async with httpx.AsyncClient() as client:
-        if source == "steam":
-            result = await verify_and_fetch_steam(client, source_id)
+        if steam_appid:
+            result = await verify_and_fetch_steam(client, steam_appid)
+            source = "steam"
         else:
-            result = await verify_and_fetch_roblox(client, source_id)
+            result = await verify_and_fetch_roblox(client, roblox_placeid)
+            source = "roblox"
 
     if result is None:
         raise HTTPException(
             status_code=404,
-            detail="Не удалось найти такую игру через публичный API. Проверь ID/ссылку и попробуй снова.",
+            detail="Игра не найдена через публичный API. Убедись, что ссылка правильная и игра существует.",
         )
 
     resolved_id = result["id"]
