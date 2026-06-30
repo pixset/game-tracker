@@ -1,33 +1,99 @@
 """
 db.py — слой хранения данных.
 
-Ключевые изменения по сравнению с первой версией:
-- games.pinned — игры, которые трекаются ВСЕГДА (стартовый набор + добавленные
-  пользователями), даже если они выпали из топ-чарта Steam.
+Хранилище: Supabase (PostgreSQL).
+Раньше был SQLite-файл на Railway Volume — он слетал при каждом редеплое и
+жил только внутри одного контейнера. Теперь всё пишется в общую базу Supabase,
+поэтому данные переживают редеплои и доступны откуда угодно.
+
+Подключение берётся из переменной окружения DATABASE_URL (или SUPABASE_DB_URL):
+это строка вида
+    postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:6543/postgres
+(Supabase → Project Settings → Database → Connection string → "Transaction"/"Session" pooler).
+
+Ключевые таблицы:
+- games.pinned   — игры, которые трекаются ВСЕГДА (стартовый набор + добавленные
+  пользователями), даже если выпали из топ-чарта Steam.
 - games.added_by — 'system' (обнаружена автоматически / стартовый набор) или
-  'user' (добавлена через форму на сайте) — это и есть "сохранено для всех":
-  как только игра попадает в эту таблицу на сервере, её видят все посетители.
-- app_names — кэш «appid → реальное название» из Steam GetAppList, чтобы не
-  дёргать дорогой store-API на каждую игру из чарта.
+  'user' (добавлена через форму на сайте) — это и есть "сохранено для всех".
+- app_names      — кэш «appid → реальное название» из Steam GetAppList.
 """
-import sqlite3
+import os
 import time
 from contextlib import contextmanager
-from pathlib import Path
 
-DB_PATH = Path(__file__).parent / "data" / "tracker.db"
-DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+import psycopg2
+from psycopg2 import pool as pg_pool
+from psycopg2.extras import RealDictCursor, execute_values
+
+DATABASE_URL = os.environ.get("DATABASE_URL") or os.environ.get("SUPABASE_DB_URL")
+
+_POOL: pg_pool.ThreadedConnectionPool | None = None
+
+
+def _ensure_dsn() -> str:
+    if not DATABASE_URL:
+        raise RuntimeError(
+            "Не задана переменная окружения DATABASE_URL (строка подключения к Supabase Postgres). "
+            "Возьми её в Supabase → Project Settings → Database → Connection string и пропиши "
+            "в переменных окружения Railway."
+        )
+    # Supabase требует TLS — добавляем sslmode=require, если он не указан явно.
+    dsn = DATABASE_URL
+    if "sslmode=" not in dsn:
+        sep = "&" if "?" in dsn else "?"
+        dsn = f"{dsn}{sep}sslmode=require"
+    return dsn
+
+
+def _get_pool() -> pg_pool.ThreadedConnectionPool:
+    global _POOL
+    if _POOL is None:
+        _POOL = pg_pool.ThreadedConnectionPool(1, 8, dsn=_ensure_dsn())
+    return _POOL
+
+
+def _q(sql: str) -> str:
+    """SQLite использовал плейсхолдеры '?', psycopg2 — '%s'. Конвертируем."""
+    return sql.replace("?", "%s")
+
+
+class _Conn:
+    """
+    Тонкая обёртка, повторяющая привычный по sqlite интерфейс
+    conn.execute(sql, params).fetchone()/fetchall(), чтобы остальной код
+    (включая collector.py) не пришлось переписывать целиком.
+    """
+
+    def __init__(self, raw):
+        self.raw = raw
+
+    def execute(self, sql: str, params=()):
+        cur = self.raw.cursor(cursor_factory=RealDictCursor)
+        cur.execute(_q(sql), params)
+        return cur
+
+    def executescript(self, sql: str):
+        cur = self.raw.cursor()
+        cur.execute(sql)
+        return cur
+
+    def cursor(self):
+        return self.raw.cursor()
 
 
 @contextmanager
 def get_conn():
-    conn = sqlite3.connect(DB_PATH, timeout=10)
-    conn.row_factory = sqlite3.Row
+    pool = _get_pool()
+    raw = pool.getconn()
     try:
-        yield conn
-        conn.commit()
+        yield _Conn(raw)
+        raw.commit()
+    except Exception:
+        raw.rollback()
+        raise
     finally:
-        conn.close()
+        pool.putconn(raw)
 
 
 def init_db():
@@ -47,7 +113,7 @@ def init_db():
             CREATE TABLE IF NOT EXISTS snapshots (
                 source      TEXT NOT NULL,
                 source_id   TEXT NOT NULL,
-                ts          INTEGER NOT NULL,
+                ts          BIGINT NOT NULL,
                 players     INTEGER NOT NULL
             );
 
@@ -76,7 +142,8 @@ def upsert_game(source, source_id, name, image_url=None, pinned=None, added_by=N
         if existing is None:
             conn.execute(
                 """INSERT INTO games (source, source_id, name, image_url, pinned, added_by)
-                   VALUES (?, ?, ?, ?, ?, ?)""",
+                   VALUES (?, ?, ?, ?, ?, ?)
+                   ON CONFLICT (source, source_id) DO NOTHING""",
                 (source, source_id, name, image_url, 1 if pinned else 0, added_by or "system"),
             )
         elif pinned is not None:
@@ -142,11 +209,18 @@ def bulk_upsert_app_names(pairs: list[tuple[str, str]]):
     if not pairs:
         return
     with get_conn() as conn:
-        conn.executemany(
-            "INSERT INTO app_names (appid, name) VALUES (?, ?) "
-            "ON CONFLICT(appid) DO UPDATE SET name=excluded.name",
-            pairs,
-        )
+        cur = conn.cursor()
+        # GetAppList отдаёт ~150 000 имён — заливаем пачками, чтобы не упереться
+        # в лимиты одного запроса по сети.
+        for i in range(0, len(pairs), 2000):
+            batch = pairs[i:i + 2000]
+            execute_values(
+                cur,
+                "INSERT INTO app_names (appid, name) VALUES %s "
+                "ON CONFLICT (appid) DO UPDATE SET name = EXCLUDED.name",
+                batch,
+                page_size=2000,
+            )
 
 
 # ------------------------------------------------------------- snapshots ----
@@ -261,8 +335,8 @@ def get_game_stats(source: str, source_id: str):
             "current": latest["players"] if latest else None,
             "last_update": latest["ts"] if latest else None,
             "peak_24h": agg_24h["peak_24h"],
-            "avg_24h": round(agg_24h["avg_24h"]) if agg_24h["avg_24h"] else None,
+            "avg_24h": int(round(agg_24h["avg_24h"])) if agg_24h["avg_24h"] else None,
             "peak_all_time": agg["peak_all_time"],
-            "avg_all_time": round(agg["avg_all_time"]) if agg["avg_all_time"] else None,
+            "avg_all_time": int(round(agg["avg_all_time"])) if agg["avg_all_time"] else None,
             "samples": agg["samples"],
         }

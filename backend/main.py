@@ -23,6 +23,7 @@ logging.basicConfig(level=logging.INFO)
 
 COLLECT_INTERVAL_SECONDS = 60
 FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
+ICONS_DIR = Path(__file__).parent.parent / "icons"
 
 
 class AddGameRequest(BaseModel):
@@ -119,7 +120,9 @@ def game_history(source: str, source_id: str, hours: int = 24):
 @app.get("/api/compare")
 async def compare(games: str, hours: int = 24):
     """
-    games — список вида "steam:730,steam:570,roblox:920587237" (максимум 3).
+    games — список вида "steam:730,steam:570,roblox:920587237".
+    Количество игр не ограничено (с защитным потолком, чтобы один запрос
+    не положил сервер).
     """
     pairs = []
     for token in games.split(","):
@@ -128,7 +131,7 @@ async def compare(games: str, hours: int = 24):
             continue
         source, source_id = token.split(":", 1)
         pairs.append((source.strip().lower(), source_id.strip()))
-    pairs = pairs[:3]
+    pairs = pairs[:50]
 
     result = []
     for source, source_id in pairs:
@@ -196,6 +199,14 @@ async def ws_endpoint(websocket: WebSocket):
             await websocket.receive_text()
     except WebSocketDisconnect:
         manager.disconnect(websocket)
+
+
+if ICONS_DIR.exists():
+    app.mount("/icons", StaticFiles(directory=ICONS_DIR), name="icons")
+
+    @app.get("/favicon.ico")
+    def favicon():
+        return FileResponse(ICONS_DIR / "favicon.ico")
 
 
 if FRONTEND_DIR.exists():

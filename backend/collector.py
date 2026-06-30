@@ -293,7 +293,7 @@ async def patch_unknown_names(client: httpx.AsyncClient, batch_size: int = 5):
     with db.get_conn() as conn:
         rows = conn.execute(
             """SELECT source_id FROM games
-               WHERE source='steam' AND name LIKE 'Steam App #%'
+               WHERE source='steam' AND name LIKE 'Steam App #%%'
                LIMIT ?""",
             (batch_size,),
         ).fetchall()
