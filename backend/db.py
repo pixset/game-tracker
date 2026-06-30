@@ -165,6 +165,38 @@ def add_user_game(source, source_id, name, image_url=None):
     upsert_game(source, source_id, name, image_url, pinned=True, added_by="user")
 
 
+def add_admin_game(source, source_id, name, image_url=None):
+    """
+    Добавление игры из админ-панели. В отличие от add_user_game принудительно
+    ставит added_by='system' (даже если игра уже была добавлена игроком) —
+    чтобы на карточке не висела плашка «добавлено игроком».
+    """
+    with get_conn() as conn:
+        existing = conn.execute(
+            "SELECT 1 FROM games WHERE source=? AND source_id=?", (source, source_id)
+        ).fetchone()
+        if existing is None:
+            conn.execute(
+                """INSERT INTO games (source, source_id, name, image_url, pinned, added_by)
+                   VALUES (?, ?, ?, ?, 1, 'system')
+                   ON CONFLICT (source, source_id) DO NOTHING""",
+                (source, source_id, name, image_url),
+            )
+        else:
+            conn.execute(
+                """UPDATE games SET name=?, image_url=COALESCE(?, image_url),
+                   pinned=1, added_by='system' WHERE source=? AND source_id=?""",
+                (name, image_url, source, source_id),
+            )
+
+
+def delete_game(source, source_id):
+    """Полное удаление игры из трекинга вместе со всей её историей."""
+    with get_conn() as conn:
+        conn.execute("DELETE FROM snapshots WHERE source=? AND source_id=?", (source, source_id))
+        conn.execute("DELETE FROM games WHERE source=? AND source_id=?", (source, source_id))
+
+
 def game_exists(source, source_id) -> bool:
     with get_conn() as conn:
         row = conn.execute(

@@ -24,6 +24,19 @@ logger = logging.getLogger("collector")
 
 STEAM_API_KEY = os.environ.get("STEAM_API_KEY")
 
+# Twitch (опционально): источник реальных зрителей по игровым категориям.
+# Включается, только если заданы обе переменные окружения.
+TWITCH_CLIENT_ID = os.environ.get("TWITCH_CLIENT_ID")
+TWITCH_CLIENT_SECRET = os.environ.get("TWITCH_CLIENT_SECRET")
+TWITCH_TOKEN_URL     = "https://id.twitch.tv/oauth2/token"
+TWITCH_TOP_GAMES_URL = "https://api.twitch.tv/helix/games/top"
+TWITCH_STREAMS_URL   = "https://api.twitch.tv/helix/streams"
+TWITCH_GAMES_URL     = "https://api.twitch.tv/helix/games"
+TWITCH_TOP_GAMES     = 30   # сколько топ-категорий трекаем
+TWITCH_STREAM_PAGES  = 5    # до 5×100 стримов на категорию при подсчёте зрителей
+
+_twitch_token: str | None = None
+
 STEAM_PLAYERS_URL = "https://api.steampowered.com/ISteamUserStats/GetNumberOfCurrentPlayers/v1/"
 STEAM_CHART_URL   = "https://api.steampowered.com/ISteamChartsService/GetGamesByConcurrentPlayers/v1/"
 STEAM_APPLIST_URL = "https://api.steampowered.com/ISteamApps/GetAppList/v2/"
@@ -284,11 +297,14 @@ async def resolve_and_seed_roblox(client: httpx.AsyncClient):
 # Фоновое подтягивание имён для "Steam App #XXXXXX"
 # ══════════════════════════════════════════════════════════════════
 
-async def patch_unknown_names(client: httpx.AsyncClient, batch_size: int = 5):
+async def patch_unknown_names(client: httpx.AsyncClient, batch_size: int = 12):
     """
     Берёт до batch_size игр с именем "Steam App #..." и запрашивает
-    настоящее имя через Steam Store API. Вызывается раз в несколько циклов.
-    Rate-limit Store API ~200 req/5min, поэтому batch маленький.
+    настоящее имя через Steam Store API. Вызывается КАЖДЫЙ цикл — это основной
+    способ получить имена, потому что GetAppList сейчас отдаёт 404/403, а SteamSpy
+    покрывает только топ-1000. Имена кэшируются в Supabase навсегда, так что после
+    первого прохода все отслеживаемые игры подписаны настоящими названиями.
+    Rate-limit Store API ~200 req/5min (~40/min), поэтому batch держим умеренным.
     """
     with db.get_conn() as conn:
         rows = conn.execute(
@@ -306,6 +322,107 @@ async def patch_unknown_names(client: httpx.AsyncClient, batch_size: int = 5):
             db.bulk_upsert_app_names([(appid, name)])
             logger.info(f"patched name: {appid} → {name}")
         await asyncio.sleep(1.5)  # уважаем rate-limit Steam Store
+
+
+# ══════════════════════════════════════════════════════════════════
+# TWITCH — реальные зрители по игровым категориям (Helix API)
+# ══════════════════════════════════════════════════════════════════
+
+def twitch_enabled() -> bool:
+    return bool(TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET)
+
+
+def _twitch_box_art(url: str | None) -> str | None:
+    if not url:
+        return None
+    return url.replace("{width}", "144").replace("{height}", "192")
+
+
+async def _twitch_get_token(client: httpx.AsyncClient, force: bool = False) -> str | None:
+    """App access token через client_credentials. Кэшируется, обновляется по 401."""
+    global _twitch_token
+    if _twitch_token and not force:
+        return _twitch_token
+    try:
+        r = await client.post(
+            TWITCH_TOKEN_URL,
+            params={
+                "client_id": TWITCH_CLIENT_ID,
+                "client_secret": TWITCH_CLIENT_SECRET,
+                "grant_type": "client_credentials",
+            },
+            timeout=10,
+        )
+        r.raise_for_status()
+        _twitch_token = r.json().get("access_token")
+        return _twitch_token
+    except Exception as e:
+        logger.warning(f"twitch token failed: {e}")
+        return None
+
+
+async def _twitch_get(client: httpx.AsyncClient, url: str, params: dict) -> dict:
+    token = await _twitch_get_token(client)
+    if not token:
+        return {}
+    headers = {"Client-Id": TWITCH_CLIENT_ID, "Authorization": f"Bearer {token}"}
+    r = await client.get(url, params=params, headers=headers, timeout=15)
+    if r.status_code == 401:  # токен протух — обновляем и повторяем один раз
+        token = await _twitch_get_token(client, force=True)
+        headers["Authorization"] = f"Bearer {token}"
+        r = await client.get(url, params=params, headers=headers, timeout=15)
+    r.raise_for_status()
+    return r.json()
+
+
+async def _twitch_count_viewers(client: httpx.AsyncClient, game_id: str, pages: int) -> int:
+    """Суммарные зрители категории по её топ-стримам (до pages×100 стримов)."""
+    viewers, cursor = 0, None
+    for _ in range(pages):
+        params = {"game_id": game_id, "first": 100}
+        if cursor:
+            params["after"] = cursor
+        data = await _twitch_get(client, TWITCH_STREAMS_URL, params)
+        streams = data.get("data", [])
+        for s in streams:
+            viewers += s.get("viewer_count", 0)
+        cursor = data.get("pagination", {}).get("cursor")
+        if not cursor or not streams:
+            break
+    return viewers
+
+
+async def fetch_twitch_top(client: httpx.AsyncClient) -> list[dict]:
+    """Топ Twitch-категорий с суммарным числом зрителей."""
+    top = await _twitch_get(client, TWITCH_TOP_GAMES_URL, {"first": min(TWITCH_TOP_GAMES, 100)})
+    games = top.get("data", [])[:TWITCH_TOP_GAMES]
+    out = []
+    for g in games:
+        viewers = await _twitch_count_viewers(client, g["id"], TWITCH_STREAM_PAGES)
+        out.append({
+            "id": str(g["id"]),
+            "name": g["name"],
+            "image": _twitch_box_art(g.get("box_art_url")),
+            "viewers": viewers,
+        })
+    return out
+
+
+async def verify_and_fetch_twitch(client: httpx.AsyncClient, query: str):
+    """Для формы добавления: query — id категории Twitch или её название."""
+    params = {"id": query} if query.isdigit() else {"name": query}
+    data = await _twitch_get(client, TWITCH_GAMES_URL, params)
+    games = data.get("data", [])
+    if not games:
+        return None
+    g = games[0]
+    viewers = await _twitch_count_viewers(client, g["id"], TWITCH_STREAM_PAGES)
+    return {
+        "id": str(g["id"]),
+        "name": g["name"],
+        "image": _twitch_box_art(g.get("box_art_url")),
+        "players": viewers,
+    }
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -350,8 +467,19 @@ async def collect_once():
                 db.upsert_game("roblox", uid, name, icons_map.get(uid))
                 db.insert_snapshot("roblox", uid, info["playing"])
 
+        # 4. Twitch — топ игровых категорий по реальным зрителям (если включён)
+        twitch_count = 0
+        if twitch_enabled():
+            try:
+                for t in await fetch_twitch_top(client):
+                    db.upsert_game("twitch", t["id"], t["name"], t["image"])
+                    db.insert_snapshot("twitch", t["id"], t["viewers"])
+                    twitch_count += 1
+            except Exception as e:
+                logger.warning(f"twitch collect failed: {e}")
+
     total_roblox = len([g for g in db.get_all_games("roblox")])
-    logger.info(f"collect_once: steam={len(chart_appids)} roblox={total_roblox}")
+    logger.info(f"collect_once: steam={len(chart_appids)} roblox={total_roblox} twitch={twitch_count}")
 
 
 async def collector_loop(interval_seconds: int = 60):
@@ -380,10 +508,10 @@ async def collector_loop(interval_seconds: int = 60):
         cycles += 1
         daily_cycles = max(1, (24 * 3600) // interval_seconds)
 
-        # Подтягиваем имена для "Steam App #..." каждые 5 циклов
-        if cycles % 5 == 0:
-            async with httpx.AsyncClient() as client:
-                await patch_unknown_names(client)
+        # Подтягиваем настоящие имена для "Steam App #..." каждый цикл — это
+        # основной источник имён, т.к. GetAppList сейчас недоступен.
+        async with httpx.AsyncClient() as client:
+            await patch_unknown_names(client)
 
         # Обновляем полный кэш имён: каждый цикл, пока не загрузилось; потом раз в сутки
         if not names_loaded or cycles % daily_cycles == 0:

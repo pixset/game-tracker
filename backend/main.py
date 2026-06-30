@@ -6,11 +6,12 @@ main.py — точка входа FastAPI.
 """
 import asyncio
 import logging
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 import httpx
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Header, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -24,10 +25,61 @@ logging.basicConfig(level=logging.INFO)
 COLLECT_INTERVAL_SECONDS = 60
 FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
 ICONS_DIR = Path(__file__).parent.parent / "icons"
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")
 
 
 class AddGameRequest(BaseModel):
     url: str   # полная ссылка на страницу игры
+
+
+class DeleteGameRequest(BaseModel):
+    source: str
+    id: str
+
+
+def _require_admin(x_admin_password: str | None):
+    """Проверка пароля админки. Пароль берётся из переменной окружения ADMIN_PASSWORD."""
+    if not ADMIN_PASSWORD:
+        raise HTTPException(
+            status_code=503,
+            detail="Админка не настроена: задай переменную окружения ADMIN_PASSWORD на сервере.",
+        )
+    if not x_admin_password or x_admin_password != ADMIN_PASSWORD:
+        raise HTTPException(status_code=401, detail="Неверный пароль администратора.")
+
+
+async def _resolve_game_from_url(url: str):
+    """
+    Распознаёт платформу по ссылке и проверяет игру через публичный API.
+    Возвращает (source, result_dict) или бросает HTTPException.
+    """
+    url = (url or "").strip()
+    if not url:
+        raise HTTPException(status_code=400, detail="Вставь ссылку на страницу игры в Steam или Roblox.")
+
+    steam_appid = _extract_steam_appid(url)
+    roblox_placeid = _extract_roblox_placeid(url)
+    if not steam_appid and not roblox_placeid:
+        raise HTTPException(
+            status_code=400,
+            detail="Не удалось распознать ссылку. Поддерживается: "
+                   "store.steampowered.com/app/... или roblox.com/games/...",
+        )
+
+    async with httpx.AsyncClient() as client:
+        if steam_appid:
+            result = await verify_and_fetch_steam(client, steam_appid)
+            source = "steam"
+        else:
+            result = await verify_and_fetch_roblox(client, roblox_placeid)
+            source = "roblox"
+
+    if result is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Игра не найдена через публичный API. Убедись, что ссылка правильная и игра существует.",
+        )
+    return source, result
 
 
 def _extract_steam_appid(url: str) -> str | None:
@@ -75,12 +127,20 @@ manager = ConnectionManager()
 async def broadcast_loop():
     while True:
         await asyncio.sleep(5)
-        await manager.broadcast_leaderboard()
+        try:
+            await manager.broadcast_leaderboard()
+        except Exception as e:
+            logging.warning(f"broadcast_loop пропустил тик: {e}")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    db.init_db()
+    # init_db оборачиваем в try: если Supabase в момент старта недоступен,
+    # сайт и иконки всё равно должны подняться, а сборщик сам переподключится.
+    try:
+        db.init_db()
+    except Exception as e:
+        logging.exception(f"init_db при старте не удался (продолжаем, сборщик повторит): {e}")
     collector_task = asyncio.create_task(collector_loop(COLLECT_INTERVAL_SECONDS))
     broadcast_task = asyncio.create_task(broadcast_loop())
     yield
@@ -150,44 +210,50 @@ async def compare(games: str, hours: int = 24):
 
 @app.post("/api/games/add")
 async def add_game(body: AddGameRequest):
-    url = body.url.strip()
-    if not url:
-        raise HTTPException(status_code=400, detail="Вставь ссылку на страницу игры в Steam или Roblox.")
-
-    # Определяем платформу по URL
-    steam_appid = _extract_steam_appid(url)
-    roblox_placeid = _extract_roblox_placeid(url)
-
-    if not steam_appid and not roblox_placeid:
-        raise HTTPException(
-            status_code=400,
-            detail="Не удалось распознать ссылку. Поддерживается: "
-                   "store.steampowered.com/app/... или roblox.com/games/...",
-        )
-
-    async with httpx.AsyncClient() as client:
-        if steam_appid:
-            result = await verify_and_fetch_steam(client, steam_appid)
-            source = "steam"
-        else:
-            result = await verify_and_fetch_roblox(client, roblox_placeid)
-            source = "roblox"
-
-    if result is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Игра не найдена через публичный API. Убедись, что ссылка правильная и игра существует.",
-        )
-
+    source, result = await _resolve_game_from_url(body.url)
     resolved_id = result["id"]
     db.add_user_game(source, resolved_id, result["name"], result["image"])
     db.insert_snapshot(source, resolved_id, result["players"])
     await manager.broadcast_leaderboard()
-
     return {
         "source": source.upper(), "id": resolved_id,
         "name": result["name"], "image": result["image"], "current": result["players"],
     }
+
+
+# ────────────────────────── АДМИНКА ──────────────────────────
+@app.get("/api/admin/check")
+async def admin_check(x_admin_password: str | None = Header(default=None)):
+    """Проверка пароля для формы входа в админку."""
+    _require_admin(x_admin_password)
+    return {"ok": True}
+
+
+@app.post("/api/admin/add")
+async def admin_add_game(body: AddGameRequest, x_admin_password: str | None = Header(default=None)):
+    """
+    Добавление игры администратором — попадает в общий список как added_by='system'
+    (без плашки «добавлено игроком»).
+    """
+    _require_admin(x_admin_password)
+    source, result = await _resolve_game_from_url(body.url)
+    resolved_id = result["id"]
+    db.add_admin_game(source, resolved_id, result["name"], result["image"])
+    db.insert_snapshot(source, resolved_id, result["players"])
+    await manager.broadcast_leaderboard()
+    return {
+        "source": source.upper(), "id": resolved_id,
+        "name": result["name"], "image": result["image"], "current": result["players"],
+    }
+
+
+@app.post("/api/admin/delete")
+async def admin_delete_game(body: DeleteGameRequest, x_admin_password: str | None = Header(default=None)):
+    """Удаление игры из трекинга вместе со всей историей."""
+    _require_admin(x_admin_password)
+    db.delete_game(body.source.strip().lower(), body.id.strip())
+    await manager.broadcast_leaderboard()
+    return {"ok": True}
 
 
 @app.websocket("/ws")
@@ -201,12 +267,16 @@ async def ws_endpoint(websocket: WebSocket):
         manager.disconnect(websocket)
 
 
-if ICONS_DIR.exists():
-    app.mount("/icons", StaticFiles(directory=ICONS_DIR), name="icons")
+# Иконки: основной путь — папка icons/ в корне проекта; запасной — frontend/icons
+# (копия лежит внутри frontend, которая точно деплоится вместе с index.html, так
+# что иконки работают даже если корневую папку icons/ не включили в сборку).
+_icons_dir = ICONS_DIR if ICONS_DIR.exists() else (FRONTEND_DIR / "icons")
+if _icons_dir.exists():
+    app.mount("/icons", StaticFiles(directory=_icons_dir), name="icons")
 
     @app.get("/favicon.ico")
     def favicon():
-        return FileResponse(ICONS_DIR / "favicon.ico")
+        return FileResponse(_icons_dir / "favicon.ico")
 
 
 if FRONTEND_DIR.exists():
@@ -215,3 +285,7 @@ if FRONTEND_DIR.exists():
     @app.get("/")
     def index():
         return FileResponse(FRONTEND_DIR / "index.html")
+
+    @app.get("/admin")
+    def admin_page():
+        return FileResponse(FRONTEND_DIR / "admin.html")
