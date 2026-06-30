@@ -319,14 +319,13 @@
   <div class="modal-overlay" id="addModalOverlay">
     <div class="modal">
       <h3>Добавить игру</h3>
-      <p class="hint">Игра будет проверена через публичный API Steam/Roblox и, если найдётся, появится в общем списке для всех посетителей сайта.</p>
-      <label>Источник</label>
-      <select id="addSource">
-        <option value="steam">Steam</option>
-        <option value="roblox">Roblox</option>
-      </select>
-      <label id="addIdLabel">AppID или ссылка на страницу в Steam</label>
-      <input type="text" id="addIdInput" placeholder="например, 730 или ссылка на store.steampowered.com">
+      <p class="hint">Вставь ссылку на страницу игры — платформа определится автоматически. Игра появится в общем списке для всех посетителей сайта.</p>
+      <label id="addIdLabel">Ссылка на игру</label>
+      <input type="text" id="addIdInput" placeholder="store.steampowered.com/app/... или roblox.com/games/...">
+      <div style="margin-top:8px; font-size:11.5px; color:var(--text-dim); line-height:1.6;">
+        <b>Steam:</b> store.steampowered.com/app/730/Counter-Strike-2/<br>
+        <b>Roblox:</b> www.roblox.com/games/2753915549/Blox-Fruits
+      </div>
       <div class="modal-msg" id="addMsg"></div>
       <div class="modal-actions">
         <button class="btn-ghost" id="addCancelBtn" style="flex:1;">Отмена</button>
@@ -934,15 +933,6 @@ window.addEventListener('resize', ()=>{
 /* =========================================================
    ДОБАВЛЕНИЕ ИГРЫ
    ========================================================= */
-function extractSteamAppId(input){
-  const m = input.match(/\/app\/(\d+)/); if(m) return m[1];
-  const d = input.match(/^\d+$/); return d ? d[0] : input.trim();
-}
-function extractRobloxId(input){
-  const m = input.match(/\/games\/(\d+)/); if(m) return m[1];
-  const d = input.match(/^\d+$/); return d ? d[0] : input.trim();
-}
-
 function openAddModal(){
   document.getElementById('addModalOverlay').classList.add('show');
   document.getElementById('addIdInput').value = '';
@@ -955,30 +945,19 @@ document.getElementById('openAddModalBtn').addEventListener('click', openAddModa
 document.getElementById('addCancelBtn').addEventListener('click', closeAddModal);
 document.getElementById('addModalOverlay').addEventListener('click', e=>{ if(e.target.id==='addModalOverlay') closeAddModal(); });
 
-document.getElementById('addSource').addEventListener('change', e=>{
-  document.getElementById('addIdLabel').textContent = e.target.value === 'steam'
-    ? 'AppID или ссылка на страницу в Steam'
-    : 'universeId, placeId или ссылка на игру в Roblox';
-  document.getElementById('addIdInput').placeholder = e.target.value === 'steam'
-    ? 'например, 730 или ссылка на store.steampowered.com'
-    : 'например, ссылка roblox.com/games/...';
-});
-
 document.getElementById('addSubmitBtn').addEventListener('click', async ()=>{
-  const source = document.getElementById('addSource').value;
-  const raw = document.getElementById('addIdInput').value.trim();
+  const url = document.getElementById('addIdInput').value.trim();
   const msg = document.getElementById('addMsg');
-  if(!raw){ msg.textContent = 'Введи ID игры или ссылку'; msg.className='modal-msg error'; return; }
+  if(!url){ msg.textContent = 'Вставь ссылку на игру'; msg.className='modal-msg error'; return; }
 
-  const sourceId = source === 'steam' ? extractSteamAppId(raw) : extractRobloxId(raw);
   const btn = document.getElementById('addSubmitBtn');
   btn.disabled = true;
   msg.className = 'modal-msg';
-  msg.innerHTML = `<span class="spinner"></span>Проверяем через API ${source === 'steam' ? 'Steam' : 'Roblox'}…`;
+  msg.innerHTML = `<span class="spinner"></span>Проверяем через API…`;
 
   if(!isOnline){
     btn.disabled = false;
-    msg.textContent = 'Backend не подключён — добавление игр работает только с задеплоенным сервером.';
+    msg.textContent = 'Backend не подключён — добавление работает только с задеплоенным сервером.';
     msg.className = 'modal-msg error';
     return;
   }
@@ -986,7 +965,7 @@ document.getElementById('addSubmitBtn').addEventListener('click', async ()=>{
   try{
     const res = await fetch(`${API_BASE}/api/games/add`, {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({source, source_id: sourceId}),
+      body: JSON.stringify({url}),
     });
     const data = await res.json();
     btn.disabled = false;
