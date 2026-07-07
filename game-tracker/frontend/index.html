@@ -4,11 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Живой трекинг онлайна игр</title>
-<link rel="icon" type="image/x-icon" href="/icons/favicon.ico">
-<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
-<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-<link rel="manifest" href="/icons/site.webmanifest">
+<link rel="icon" type="image/x-icon" href="/game-tracker/icons/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="/game-tracker/icons/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/game-tracker/icons/favicon-16x16.png">
+<link rel="apple-touch-icon" href="/game-tracker/icons/apple-touch-icon.png">
+<link rel="manifest" href="/game-tracker/icons/site.webmanifest">
 <meta name="theme-color" content="#0a0d10">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -74,7 +74,7 @@
   .pill{ border:none; background:transparent; color:var(--text-dim); font-size:13px; font-weight:600; padding:7px 14px; border-radius:7px; cursor:pointer; transition:.15s; }
   .pill:hover{ color:var(--text); }
   .pill.active{ background:var(--panel-2); color:var(--text); box-shadow:inset 0 0 0 1px var(--line); }
-  .pill.active.src-steam{ color:var(--signal); } .pill.active.src-roblox{ color:var(--amber); }
+  .pill.active.src-steam{ color:var(--signal); } .pill.active.src-roblox{ color:var(--amber); } .pill.active.src-twitch{ color:var(--violet); }
   .search-box{ position:relative; flex:1; min-width:180px; max-width:280px; }
   .search-box input{ width:100%; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:9px 12px 9px 32px; color:var(--text); font-size:13px; outline:none; }
   .search-box input:focus{ border-color:#33414b; }
@@ -87,6 +87,7 @@
   .thumb img{ position:relative; z-index:1; width:100%; height:100%; object-fit:cover; display:block; }
   .thumb.src-steam{ background:linear-gradient(135deg, rgba(77,216,232,.16), #11161b); }
   .thumb.src-roblox{ background:linear-gradient(135deg, rgba(255,180,84,.16), #11161b); }
+  .thumb.src-twitch{ background:linear-gradient(135deg, rgba(180,140,255,.16), #11161b); }
   .thumb.row-thumb{ width:32px; height:32px; }
   .thumb.detail-thumb{ width:56px; height:56px; }
   .thumb.detail-thumb::before{ font-size:20px; }
@@ -219,7 +220,7 @@
   <div id="listView">
     <section class="hero">
       <h1>Кто играет <span class="acc">прямо сейчас</span></h1>
-      <p>Онлайн по играм Steam и Roblox в реальном времени. Без backend здесь принципиально не показывается ни одной цифры — никаких фейковых данных.</p>
+      <p>Онлайн по играм Steam и Roblox и зрители Twitch в реальном времени. Без backend здесь принципиально не показывается ни одной цифры — никаких фейковых данных.</p>
     </section>
 
     <div class="stat-row" id="statRow"></div>
@@ -230,6 +231,7 @@
         <button class="pill active" data-src="all">Все игры</button>
         <button class="pill src-steam" data-src="steam">Steam</button>
         <button class="pill src-roblox" data-src="roblox">Roblox</button>
+        <button class="pill src-twitch" data-src="twitch">Twitch</button>
       </div>
       <div class="pill-group" id="limitFilter">
         <button class="pill active" data-limit="10">Топ 10</button>
@@ -252,7 +254,7 @@
     </section>
 
     <footer>
-      <div class="mono">Источники данных: Steam Web API (топ — ISteamChartsService/GetGamesByConcurrentPlayers), Roblox Games API.</div>
+      <div class="mono">Источники данных: Steam Web API (топ — ISteamChartsService/GetGamesByConcurrentPlayers), Roblox Games API, Twitch Helix API (зрители по категориям).</div>
       <div style="margin-top:6px;">Этот файл — фронтенд. Реальные цифры появятся только когда он открыт через задеплоенный backend (см. README в архиве проекта).</div>
     </footer>
   </div>
@@ -380,18 +382,25 @@ function fmt(n){ return (n===null || n===undefined) ? '—' : Math.round(n).toLo
 /* =========================================================
    ИКОНКИ — только настоящие, без фолбэков на случайные картинки
    ========================================================= */
+function srcClassOf(source){
+  const s = (source || '').toUpperCase();
+  if(s === 'ROBLOX') return 'src-roblox';
+  if(s === 'TWITCH') return 'src-twitch';
+  return 'src-steam';
+}
+/* Единица измерения: у Twitch это зрители, у остальных — игроки */
+function unitFor(source){ return (source || '').toUpperCase() === 'TWITCH' ? 'зрителей' : 'игроков'; }
+
 function thumbMarkup(game, sizeClass){
   const letter = (game.name || '?').trim().charAt(0).toUpperCase();
-  const isRoblox = (game.source || '').toUpperCase() === 'ROBLOX';
-  const srcClass = isRoblox ? 'src-roblox' : 'src-steam';
+  const srcClass = srcClassOf(game.source);
   const imgUrl = game.image || null;
   const img = imgUrl ? `<img src="${imgUrl}" loading="lazy" onerror="this.style.display='none'">` : '';
   return `<div class="thumb ${srcClass} ${sizeClass}" data-letter="${letter}">${img}</div>`;
 }
 function fillDetailThumb(game){
   const el = document.getElementById('dThumb');
-  const isRoblox = (game.source || '').toUpperCase() === 'ROBLOX';
-  el.className = 'thumb detail-thumb ' + (isRoblox ? 'src-roblox' : 'src-steam');
+  el.className = 'thumb detail-thumb ' + srcClassOf(game.source);
   el.dataset.letter = (game.name || '?').trim().charAt(0).toUpperCase();
   el.innerHTML = game.image ? `<img src="${game.image}" loading="lazy" onerror="this.style.display='none'">` : '';
 }
@@ -740,7 +749,8 @@ function onChartMove(evt){
   const timeLabel = currentRangeHours > 24
     ? d.toLocaleString('ru-RU', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'})
     : d.toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'});
-  tooltip.innerHTML = `<b>${fmt(p.players)}</b> игроков<div class="tt-time">${timeLabel}</div>`;
+  const unit = currentGame ? unitFor(currentGame.source) : 'игроков';
+  tooltip.innerHTML = `<b>${fmt(p.players)}</b> ${unit}<div class="tt-time">${timeLabel}</div>`;
 }
 function onChartLeave(){
   const hoverLayer = document.getElementById('hoverLayer');
