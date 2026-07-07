@@ -408,8 +408,8 @@ function fillDetailThumb(game){
 /* =========================================================
    СЕТЬ
    ========================================================= */
-async function tryFetch(url, opts){
-  try{ const r = await fetch(url, {...opts, signal: AbortSignal.timeout(6000)}); if(r.ok) return await r.json(); return {__error: await r.json().catch(()=>({detail:'Ошибка сервера'}))}; }
+async function tryFetch(url, opts, timeoutMs){
+  try{ const r = await fetch(url, {...opts, signal: AbortSignal.timeout(timeoutMs || 6000)}); if(r.ok) return await r.json(); return {__error: await r.json().catch(()=>({detail:'Ошибка сервера'}))}; }
   catch(e){ return null; }
 }
 
@@ -420,10 +420,28 @@ function setOnline(online){
   document.getElementById('headerDot').className = 'dot' + (online ? '' : ' off');
 }
 
+/* Переподключение WS с нарастающей паузой (1с → 2с → 4с … потолок 20с).
+   Без этого разрыв соединения (перезапуск backend, сетевой сбой) навсегда
+   вешал статус OFFLINE до ручной перезагрузки страницы. */
+let wsReconnectDelay = 1000;
+let wsReconnectTimer = null;
+let wsClosedByUs = false;
+
+function scheduleReconnectWS(){
+  if(wsReconnectTimer) return;
+  wsReconnectTimer = setTimeout(()=>{
+    wsReconnectTimer = null;
+    connectWS();
+  }, wsReconnectDelay);
+  wsReconnectDelay = Math.min(wsReconnectDelay * 2, 20000);
+}
+
 function connectWS(){
   try{
+    if(ws){ wsClosedByUs = true; try{ ws.close(); }catch(e){} }
+    wsClosedByUs = false;
     ws = new WebSocket(`${WS_BASE}/ws`);
-    ws.onopen = () => setOnline(true);
+    ws.onopen = () => { setOnline(true); wsReconnectDelay = 1000; };
     ws.onmessage = (ev) => {
       try{
         const data = JSON.parse(ev.data);
@@ -431,8 +449,11 @@ function connectWS(){
       }catch(e){}
     };
     ws.onerror = () => setOnline(false);
-    ws.onclose = () => setOnline(false);
-  }catch(e){ setOnline(false); }
+    ws.onclose = () => {
+      setOnline(false);
+      if(!wsClosedByUs) scheduleReconnectWS();
+    };
+  }catch(e){ setOnline(false); scheduleReconnectWS(); }
 }
 
 function onLeaderboardUpdate(){
@@ -649,7 +670,7 @@ async function renderChart(source, id){
   const real = await tryFetch(`${API_BASE}/api/games/${source}/${id}/history?hours=${currentRangeHours}`);
   const history = (real && Array.isArray(real)) ? real : [];
   const svg = document.getElementById('chartSvg');
-  svg.innerHTML = buildChartSvg(svg, history, 'var(--signal)'.startsWith('var') ? '#4dd8e8' : '#4dd8e8');
+  svg.innerHTML = buildChartSvg(svg, history, '#4dd8e8');
 }
 
 function openDetail(source, id){ location.hash = `#/game/${source.toLowerCase()}/${id}`; }
@@ -1061,17 +1082,33 @@ document.getElementById('rangeTabs').addEventListener('click', e=>{
    ========================================================= */
 function tickClock(){ document.getElementById('clock').textContent = new Date().toLocaleTimeString('ru-RU'); }
 
-async function init(){
-  const real = await tryFetch(`${API_BASE}/api/top?source=all&limit=1000`);
+/* Railway "усыпляет" бесплатные инстансы — первый запрос после простоя
+   может отвечать 10-15с, а не укладываться в обычный таймаут. Поэтому при
+   старте пробуем несколько раз с увеличенным таймаутом и растущей паузой,
+   прежде чем показать пользователю "backend не подключён". */
+async function tryConnect(attempt){
+  const real = await tryFetch(`${API_BASE}/api/top?source=all&limit=1000`, undefined, 12000);
   if(real && Array.isArray(real)){
     leaderboard = real;
     setOnline(true);
     connectWS();
-  } else {
-    setOnline(false);
+    if(parseRoute().view === 'list'){ renderAll(); }
+    return true;
+  }
+  return false;
+}
+
+async function init(){
+  tickClock(); setInterval(tickClock, 1000);
+
+  const maxAttempts = 4;
+  for(let attempt = 1; attempt <= maxAttempts; attempt++){
+    const ok = await tryConnect(attempt);
+    if(ok) break;
+    if(attempt === maxAttempts){ setOnline(false); }
+    else await new Promise(res => setTimeout(res, attempt * 2000));
   }
 
-  tickClock(); setInterval(tickClock, 1000);
   handleRoute();
 
   setInterval(()=>{
@@ -1079,6 +1116,13 @@ async function init(){
     if(r.view === 'game') refreshDetail();
     else if(r.view === 'compare') renderCompareView(r.token);
   }, 8000);
+
+  /* Если так и не удалось подключиться при старте (backend ещё "просыпается"
+     или временно недоступен) — продолжаем пробовать в фоне, а не оставляем
+     сайт в OFFLINE до перезагрузки страницы. */
+  setInterval(()=>{
+    if(!isOnline) tryConnect();
+  }, 10000);
 }
 init();
 </script>
