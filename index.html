@@ -520,6 +520,9 @@ function emptyStateHtml(){
   if(!leaderboard.length){
     return `<div class="empty-state"><b>Backend на связи, но данных пока нет.</b><br><br>Сборщик опрашивает Steam/Roblox раз в минуту — первые цифры появятся в течение минуты после старта сервера.</div>`;
   }
+  if(state.src === 'twitch' && !leaderboard.some(g=>g.source.toLowerCase()==='twitch')){
+    return `<div class="empty-state"><b>Twitch пока не настроен на сервере.</b><br><br>Владельцу сайта нужно задать переменные окружения <code>TWITCH_CLIENT_ID</code> и <code>TWITCH_CLIENT_SECRET</code> на backend — без них зрители Twitch не собираются.</div>`;
+  }
   return `<div class="empty-state">Ничего не найдено с текущими фильтрами или поиском.</div>`;
 }
 
@@ -527,7 +530,8 @@ function renderBoard(){
   const rows = getFiltered();
   renderStatRow(rows);
 
-  const srcLabel = state.src === 'all' ? 'все игры' : (state.src === 'steam' ? 'Steam' : 'Roblox');
+  const srcLabels = { steam:'Steam', roblox:'Roblox', twitch:'Twitch' };
+  const srcLabel = state.src === 'all' ? 'все игры' : (srcLabels[state.src] || state.src);
   document.getElementById('boardTitle').textContent = `Топ-${Math.min(state.limit, rows.length || state.limit)} · ${srcLabel}`;
   document.getElementById('lastUpdate').textContent = isOnline ? 'обновляется live' : 'нет соединения';
 
