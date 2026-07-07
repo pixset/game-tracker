@@ -488,6 +488,16 @@ async def collect_once():
 async def collector_loop(interval_seconds: int = 60):
     db.init_db()
 
+    if twitch_enabled():
+        logger.info("Twitch: ключи заданы, интеграция включена")
+    else:
+        logger.warning(
+            "Twitch: TWITCH_CLIENT_ID и/или TWITCH_CLIENT_SECRET не заданы — "
+            "сбор зрителей Twitch отключён, вкладка будет пустой. Возьми Client ID "
+            "и Client Secret на https://dev.twitch.tv/console/apps и пропиши их "
+            "в переменных окружения Railway, затем перезапусти сервис."
+        )
+
     # Немедленно подсеиваем известные имена Steam-игр из стартового списка
     db.seed_initial_games(STEAM_GAMES, [])  # Steam сидим сразу
     db.bulk_upsert_app_names([(g["appid"], g["name"]) for g in STEAM_GAMES])
