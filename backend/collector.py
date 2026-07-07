@@ -137,6 +137,9 @@ async def fetch_store_name(client: httpx.AsyncClient, appid: str) -> str | None:
 # ══════════════════════════════════════════════════════════════════
 
 async def fetch_steam_chart(client: httpx.AsyncClient, max_games: int = 1000) -> list[dict]:
+    # Примечание: сам эндпоинт Steam фактически отдаёт top-100 (это официальный
+    # чарт store.steampowered.com/charts/mostplayed), а не 1000 — max_games тут
+    # просто защитный потолок на будущее, если Valve когда-нибудь расширит ответ.
     try:
         r = await client.get(STEAM_CHART_URL, params=_with_key({}), timeout=15)
         r.raise_for_status()

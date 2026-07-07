@@ -266,31 +266,40 @@ def insert_snapshot(source: str, source_id: str, players: int, ts: int | None = 
 
 
 def get_leaderboard(source: str | None = None, limit: int = 100):
-    """Последний снэпшот по каждой игре, отсортированный по онлайну."""
+    """
+    Последний снэпшот по каждой игре, отсортированный по онлайну.
+
+    Раньше дельта считалась коррелированным подзапросом на КАЖДУЮ строку
+    результата (SELECT ... WHERE s2.ts < s.ts ORDER BY ... LIMIT 1) — при
+    росте истории снэпшотов и количества игр это лишняя нагрузка на Postgres
+    на каждый вызов (а вызывается он раз в 5 секунд для рассылки по WS).
+    Теперь дельта считается один раз оконной функцией LAG() по каждой игре.
+    """
     params: list = []
     where_clause = ""
     if source and source.lower() != "all":
         where_clause = "WHERE g.source = ?"
         params.append(source.lower())
-    ts_join = "AND" if where_clause else "WHERE"
 
     with get_conn() as conn:
         rows = conn.execute(
             f"""
-            SELECT g.source, g.source_id, g.name, g.image_url, g.added_by,
-                   s.players, s.ts,
-                   (SELECT players FROM snapshots s2
-                    WHERE s2.source = g.source AND s2.source_id = g.source_id
-                      AND s2.ts < s.ts
-                    ORDER BY s2.ts DESC LIMIT 1) AS prev_players
-            FROM games g
-            JOIN snapshots s ON s.source = g.source AND s.source_id = g.source_id
-            {where_clause}
-            {ts_join} s.ts = (
-                SELECT MAX(ts) FROM snapshots s3
-                WHERE s3.source = g.source AND s3.source_id = g.source_id
+            WITH ranked AS (
+                SELECT source, source_id, players, ts,
+                       LAG(players) OVER (
+                           PARTITION BY source, source_id ORDER BY ts
+                       ) AS prev_players,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY source, source_id ORDER BY ts DESC
+                       ) AS rn
+                FROM snapshots
             )
-            ORDER BY s.players DESC
+            SELECT g.source, g.source_id, g.name, g.image_url, g.added_by,
+                   r.players, r.ts, r.prev_players
+            FROM games g
+            JOIN ranked r ON r.source = g.source AND r.source_id = g.source_id AND r.rn = 1
+            {where_clause}
+            ORDER BY r.players DESC
             LIMIT ?
             """,
             (*params, limit),
