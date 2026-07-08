@@ -5,6 +5,9 @@ Steam: appid — число из URL store.steampowered.com/app/<appid>/...
 Roblox: place_id — число из URL roblox.com/games/<place_id>/...
         (это НЕ universeId — backend сам конвертирует при старте через
          apis.roblox.com/universes/v1/places/<place_id>/universe)
+Minecraft: address — хост сервера (то, что игрок вводит в "Добавить сервер"
+           в самом Minecraft). Онлайн берётся через публичный пинг-статус
+           api.mcsrvstat.us — ключей и регистрации не требует.
 """
 
 STEAM_GAMES = [
@@ -45,4 +48,14 @@ ROBLOX_GAMES = [
     {"place_id": "6872265039",  "name": "BedWars"},
     {"place_id": "6381829480",  "name": "Dress to Impress"},
     {"place_id": "1537690962",  "name": "Bee Swarm Simulator"},
+]
+
+# address — хост сервера, тот же, что вводится в клиенте Minecraft
+MINECRAFT_SERVERS = [
+    {"address": "hypixel.net",          "name": "Hypixel"},
+    {"address": "play.wynncraft.com",   "name": "Wynncraft"},
+    {"address": "us.mineplex.com",      "name": "Mineplex"},
+    {"address": "play.cubecraft.net",   "name": "CubeCraft Games"},
+    {"address": "play.hivemc.com",      "name": "The Hive"},
+    {"address": "2b2t.org",             "name": "2b2t"},
 ]

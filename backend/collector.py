@@ -18,7 +18,7 @@ import os
 import httpx
 
 import db
-from games_list import ROBLOX_GAMES, STEAM_GAMES
+from games_list import ROBLOX_GAMES, STEAM_GAMES, MINECRAFT_SERVERS
 
 logger = logging.getLogger("collector")
 
@@ -48,6 +48,13 @@ STEAM_HEADER_IMG  = "https://cdn.cloudflare.steamstatic.com/steam/apps/{appid}/h
 ROBLOX_URL        = "https://games.roblox.com/v1/games"
 ROBLOX_ICONS_URL  = "https://thumbnails.roblox.com/v1/games/icons"
 ROBLOX_RESOLVE    = "https://apis.roblox.com/universes/v1/places/{place_id}/universe"
+
+# Minecraft: публичный пинг-статус сервера, ключей и регистрации не требует.
+# Кэшируется на стороне mcsrvstat.us на 5 минут — опрашивать чаще нет смысла,
+# но опрос раз в минуту (как остальные источники) не проблема: просто иногда
+# отдаёт закэшированный ответ.
+MCSRVSTAT_URL = "https://api.mcsrvstat.us/3/{address}"
+MC_USER_AGENT = "game-tracker (+https://github.com/pixset/game-tracker)"
 
 _app_names_loaded = False
 
@@ -328,6 +335,57 @@ async def patch_unknown_names(client: httpx.AsyncClient, batch_size: int = 12):
 
 
 # ══════════════════════════════════════════════════════════════════
+# MINECRAFT — пинг-статус известных серверов (без ключей, без регистрации)
+# ══════════════════════════════════════════════════════════════════
+
+async def fetch_minecraft_server(client: httpx.AsyncClient, address: str) -> dict | None:
+    """
+    address — хост сервера (например 'hypixel.net'). Возвращает
+    {"players": int, "image": str|None} или None, если сервер офлайн/недоступен.
+    Без описательного User-Agent api.mcsrvstat.us отвечает 403.
+    """
+    try:
+        r = await client.get(
+            MCSRVSTAT_URL.format(address=address),
+            headers={"User-Agent": MC_USER_AGENT},
+            timeout=15,
+        )
+        r.raise_for_status()
+        data = r.json()
+        if not data.get("online"):
+            return None
+        online = data.get("players", {}).get("online")
+        if online is None:
+            return None
+        return {"players": int(online), "image": data.get("icon")}
+    except Exception as e:
+        logger.warning(f"minecraft server={address} failed: {e}")
+        return None
+
+
+async def collect_minecraft(client: httpx.AsyncClient) -> int:
+    """Опрашивает все трекаемые Minecraft-сервера, возвращает число успешных."""
+    games = db.get_all_games("minecraft")
+    sem = asyncio.Semaphore(5)
+    count = 0
+
+    async def one(g):
+        nonlocal count
+        async with sem:
+            info = await fetch_minecraft_server(client, g["source_id"])
+            if info is not None:
+                # Иконку сервера обновляем, только если API её вернул — иначе
+                # сохраняем ранее известную (data-URI), не затираем на None.
+                image = info["image"] or g.get("image_url")
+                db.upsert_game("minecraft", g["source_id"], g["name"], image)
+                db.insert_snapshot("minecraft", g["source_id"], info["players"])
+                count += 1
+
+    await asyncio.gather(*(one(g) for g in games))
+    return count
+
+
+# ══════════════════════════════════════════════════════════════════
 # TWITCH — реальные зрители по игровым категориям (Helix API)
 # ══════════════════════════════════════════════════════════════════
 
@@ -470,7 +528,10 @@ async def collect_once():
                 db.upsert_game("roblox", uid, name, icons_map.get(uid))
                 db.insert_snapshot("roblox", uid, info["playing"])
 
-        # 4. Twitch — топ игровых категорий по реальным зрителям (если включён)
+        # 4. Minecraft — известные сервера, пинг-статус через mcsrvstat.us
+        minecraft_count = await collect_minecraft(client)
+
+        # 5. Twitch — топ игровых категорий по реальным зрителям (если включён)
         twitch_count = 0
         if twitch_enabled():
             try:
@@ -482,7 +543,10 @@ async def collect_once():
                 logger.warning(f"twitch collect failed: {e}")
 
     total_roblox = len([g for g in db.get_all_games("roblox")])
-    logger.info(f"collect_once: steam={len(chart_appids)} roblox={total_roblox} twitch={twitch_count}")
+    logger.info(
+        f"collect_once: steam={len(chart_appids)} roblox={total_roblox} "
+        f"minecraft={minecraft_count} twitch={twitch_count}"
+    )
 
 
 async def collector_loop(interval_seconds: int = 60):
@@ -499,7 +563,7 @@ async def collector_loop(interval_seconds: int = 60):
         )
 
     # Немедленно подсеиваем известные имена Steam-игр из стартового списка
-    db.seed_initial_games(STEAM_GAMES, [])  # Steam сидим сразу
+    db.seed_initial_games(STEAM_GAMES, [], MINECRAFT_SERVERS)  # Steam и Minecraft сидим сразу
     db.bulk_upsert_app_names([(g["appid"], g["name"]) for g in STEAM_GAMES])
 
     # Roblox: резолвим placeId → universeId при старте

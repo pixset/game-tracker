@@ -223,11 +223,13 @@ def get_pinned_games(source: str):
         return [dict(r) for r in rows]
 
 
-def seed_initial_games(steam_seed: list, roblox_seed: list):
+def seed_initial_games(steam_seed: list, roblox_seed: list, minecraft_seed: list | None = None):
     for g in steam_seed:
         upsert_game("steam", g["appid"], g["name"], pinned=True, added_by="system")
     for g in roblox_seed:
         upsert_game("roblox", g["universe_id"], g["name"], pinned=True, added_by="system")
+    for g in (minecraft_seed or []):
+        upsert_game("minecraft", g["address"], g["name"], pinned=True, added_by="system")
 
 
 # ------------------------------------------------------------- app names ----
