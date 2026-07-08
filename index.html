@@ -16,7 +16,7 @@
   :root{
     --bg:#0a0d10; --panel:#11161b; --panel-2:#161c22; --line:#232b32;
     --text:#d9e2e8; --text-dim:#7c8a94;
-    --up:#3ddc84; --down:#ff7a59; --signal:#4dd8e8; --amber:#ffb454; --violet:#b48cff;
+    --up:#3ddc84; --down:#ff7a59; --signal:#4dd8e8; --amber:#ffb454; --violet:#b48cff; --leaf:#8bc34a;
   }
   *{margin:0;padding:0;box-sizing:border-box;}
   html,body{ background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased; }
@@ -74,7 +74,7 @@
   .pill{ border:none; background:transparent; color:var(--text-dim); font-size:13px; font-weight:600; padding:7px 14px; border-radius:7px; cursor:pointer; transition:.15s; }
   .pill:hover{ color:var(--text); }
   .pill.active{ background:var(--panel-2); color:var(--text); box-shadow:inset 0 0 0 1px var(--line); }
-  .pill.active.src-steam{ color:var(--signal); } .pill.active.src-roblox{ color:var(--amber); } .pill.active.src-twitch{ color:var(--violet); }
+  .pill.active.src-steam{ color:var(--signal); } .pill.active.src-roblox{ color:var(--amber); } .pill.active.src-twitch{ color:var(--violet); } .pill.active.src-minecraft{ color:var(--leaf); }
   .search-box{ position:relative; flex:1; min-width:180px; max-width:280px; }
   .search-box input{ width:100%; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:9px 12px 9px 32px; color:var(--text); font-size:13px; outline:none; }
   .search-box input:focus{ border-color:#33414b; }
@@ -88,6 +88,7 @@
   .thumb.src-steam{ background:linear-gradient(135deg, rgba(77,216,232,.16), #11161b); }
   .thumb.src-roblox{ background:linear-gradient(135deg, rgba(255,180,84,.16), #11161b); }
   .thumb.src-twitch{ background:linear-gradient(135deg, rgba(180,140,255,.16), #11161b); }
+  .thumb.src-minecraft{ background:linear-gradient(135deg, rgba(139,195,74,.16), #11161b); }
   .thumb.row-thumb{ width:32px; height:32px; }
   .thumb.detail-thumb{ width:56px; height:56px; }
   .thumb.detail-thumb::before{ font-size:20px; }
@@ -220,7 +221,7 @@
   <div id="listView">
     <section class="hero">
       <h1>Кто играет <span class="acc">прямо сейчас</span></h1>
-      <p>Онлайн по играм Steam и Roblox и зрители Twitch в реальном времени. Без backend здесь принципиально не показывается ни одной цифры — никаких фейковых данных.</p>
+      <p>Онлайн по играм Steam и Roblox, игроки на известных Minecraft-серверах и зрители Twitch в реальном времени. Без backend здесь принципиально не показывается ни одной цифры — никаких фейковых данных.</p>
     </section>
 
     <div class="stat-row" id="statRow"></div>
@@ -231,6 +232,7 @@
         <button class="pill active" data-src="all">Все игры</button>
         <button class="pill src-steam" data-src="steam">Steam</button>
         <button class="pill src-roblox" data-src="roblox">Roblox</button>
+        <button class="pill src-minecraft" data-src="minecraft">Minecraft</button>
         <button class="pill src-twitch" data-src="twitch">Twitch</button>
       </div>
       <div class="pill-group" id="limitFilter">
@@ -254,7 +256,7 @@
     </section>
 
     <footer>
-      <div class="mono">Источники данных: Steam Web API (топ — ISteamChartsService/GetGamesByConcurrentPlayers), Roblox Games API, Twitch Helix API (зрители по категориям).</div>
+      <div class="mono">Источники данных: Steam Web API (топ — ISteamChartsService/GetGamesByConcurrentPlayers), Roblox Games API, Minecraft Server Status API (api.mcsrvstat.us), Twitch Helix API (зрители по категориям).</div>
       <div style="margin-top:6px;">Этот файл — фронтенд. Реальные цифры появятся только когда он открыт через задеплоенный backend (см. README в архиве проекта).</div>
     </footer>
   </div>
@@ -386,6 +388,7 @@ function srcClassOf(source){
   const s = (source || '').toUpperCase();
   if(s === 'ROBLOX') return 'src-roblox';
   if(s === 'TWITCH') return 'src-twitch';
+  if(s === 'MINECRAFT') return 'src-minecraft';
   return 'src-steam';
 }
 /* Единица измерения: у Twitch это зрители, у остальных — игроки */
@@ -530,7 +533,7 @@ function renderBoard(){
   const rows = getFiltered();
   renderStatRow(rows);
 
-  const srcLabels = { steam:'Steam', roblox:'Roblox', twitch:'Twitch' };
+  const srcLabels = { steam:'Steam', roblox:'Roblox', twitch:'Twitch', minecraft:'Minecraft' };
   const srcLabel = state.src === 'all' ? 'все игры' : (srcLabels[state.src] || state.src);
   document.getElementById('boardTitle').textContent = `Топ-${Math.min(state.limit, rows.length || state.limit)} · ${srcLabel}`;
   document.getElementById('lastUpdate').textContent = isOnline ? 'обновляется live' : 'нет соединения';
