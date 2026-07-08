@@ -173,6 +173,7 @@ uvicorn main:app --reload --port 8000
    - `TWITCH_CLIENT_ID` + `TWITCH_CLIENT_SECRET` — включают источник Twitch.
    - `STEAM_API_KEY` — опционально, оживляет массовый `GetAppList` и снимает
      отдельные rate-limit'ы Valve.
+7. Публичный Domain должен быть web-game-tracker (https://web-game-tracker.up.railway.app/) чтобы всё работало
 
 ## Иконка / брендинг
 
