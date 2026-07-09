@@ -50,12 +50,42 @@ ROBLOX_GAMES = [
     {"place_id": "1537690962",  "name": "Bee Swarm Simulator"},
 ]
 
-# address — хост сервера, тот же, что вводится в клиенте Minecraft
+# address — хост сервера, тот же, что вводится в клиенте Minecraft.
+#
+# ВАЖНО про эту подборку: адреса собраны по открытым источникам (обзоры,
+# серверные листинги) — я не могу лично пропинговать их из этой песочницы
+# (сеть здесь режется белым списком доменов, mcsrvstat.us и Minecraft-порты
+# в него не входят), поэтому 100% "прямо сейчас у всех не ноль" гарантировать
+# не могу. Если после деплоя какой-то сервер стабильно показывает 0 или
+# вообще не появляется в списке (адрес мог смениться/сервер закрылся) —
+# просто замени/удали строку ниже, никаких других правок не нужно.
+# The Hive (play.hivemc.com) убран: его Java-адрес фактически заброшен —
+# игроки давно перетекли на Bedrock-версию (geo.hivebedrock.network), которая
+# работает по другому протоколу и здесь не поддерживается.
 MINECRAFT_SERVERS = [
-    {"address": "hypixel.net",          "name": "Hypixel"},
-    {"address": "play.wynncraft.com",   "name": "Wynncraft"},
-    {"address": "us.mineplex.com",      "name": "Mineplex"},
-    {"address": "play.cubecraft.net",   "name": "CubeCraft Games"},
-    {"address": "play.hivemc.com",      "name": "The Hive"},
-    {"address": "2b2t.org",             "name": "2b2t"},
+    {"address": "hypixel.net",           "name": "Hypixel"},
+    {"address": "us.mineplex.com",       "name": "Mineplex"},
+    {"address": "play.cubecraft.net",    "name": "CubeCraft Games"},
+    {"address": "play.wynncraft.com",    "name": "Wynncraft"},
+    {"address": "2b2t.org",              "name": "2b2t"},
+    {"address": "play.manacube.com",     "name": "ManaCube"},
+    {"address": "hub.mc-complex.com",    "name": "Complex Gaming"},
+    {"address": "play.pika.host",        "name": "PikaNetwork"},
+    {"address": "play.purpleprison.org", "name": "Purple Prison"},
+    {"address": "play.minesuperior.com", "name": "MineSuperior"},
+    {"address": "massivecraft.com",      "name": "MassiveCraft"},
+    {"address": "mc.advancius.net",      "name": "Advancius Network"},
+    {"address": "play.munchymc.com",     "name": "MunchyMC"},
+    {"address": "play.blocksmc.com",     "name": "BlocksMC"},
+    {"address": "play.cosmicpvp.com",    "name": "CosmicPvP"},
+    {"address": "us.minemen.club",       "name": "Minemen Club"},
+    {"address": "play.invadedlands.net", "name": "InvadedLands"},
+    {"address": "play.pokefind.co",      "name": "PokeFind"},
+    {"address": "play.minemalia.com",    "name": "MineMalia"},
+    {"address": "the-gommehd.net",       "name": "GommeHD"},
+    {"address": "earthmc.net",           "name": "EarthMC"},
+    {"address": "mc.brawl.com",          "name": "Brawl"},
+    {"address": "sl.extremecraft.net",   "name": "ExtremeCraft"},
+    {"address": "sm.insanitycraft.net",  "name": "InsanityCraft"},
+    {"address": "play.jartexnetwork.com","name": "JartexNetwork"},
 ]

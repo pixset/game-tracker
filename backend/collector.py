@@ -490,7 +490,7 @@ async def verify_and_fetch_twitch(client: httpx.AsyncClient, query: str):
 # Основной цикл
 # ══════════════════════════════════════════════════════════════════
 
-async def collect_once():
+async def collect_once(do_minecraft: bool = True):
     async with httpx.AsyncClient() as client:
         # 1. Steam чарт — топ до 1000 игр одним запросом
         chart = await fetch_steam_chart(client)
@@ -528,8 +528,12 @@ async def collect_once():
                 db.upsert_game("roblox", uid, name, icons_map.get(uid))
                 db.insert_snapshot("roblox", uid, info["playing"])
 
-        # 4. Minecraft — известные сервера, пинг-статус через mcsrvstat.us
-        minecraft_count = await collect_minecraft(client)
+        # 4. Minecraft — известные сервера, пинг-статус через mcsrvstat.us.
+        # Сам mcsrvstat.us кэширует ответ на 5 минут на своей стороне, поэтому
+        # опрашивать его каждую минуту (как остальные источники) бессмысленно —
+        # do_minecraft выставляет collector_loop, реально дёргая эту секцию
+        # раз в MINECRAFT_INTERVAL_SECONDS (см. ниже), а не на каждом тике.
+        minecraft_count = await collect_minecraft(client) if do_minecraft else None
 
         # 5. Twitch — топ игровых категорий по реальным зрителям (если включён)
         twitch_count = 0
@@ -543,9 +547,10 @@ async def collect_once():
                 logger.warning(f"twitch collect failed: {e}")
 
     total_roblox = len([g for g in db.get_all_games("roblox")])
+    minecraft_label = minecraft_count if minecraft_count is not None else "skip(5min)"
     logger.info(
         f"collect_once: steam={len(chart_appids)} roblox={total_roblox} "
-        f"minecraft={minecraft_count} twitch={twitch_count}"
+        f"minecraft={minecraft_label} twitch={twitch_count}"
     )
 
 
@@ -575,10 +580,18 @@ async def collector_loop(interval_seconds: int = 60):
     async with httpx.AsyncClient() as client:
         names_loaded = await refresh_app_names(client)
 
+    # mcsrvstat.us кэширует ответ на своей стороне на 5 минут — опрашивать
+    # чаще нет смысла, только тратим лимит запросов и рискуем словить бан
+    # за спам. Поэтому Minecraft реально собирается раз в 5 минут, даже если
+    # интервал остальных источников (COLLECT_INTERVAL_SECONDS) короче.
+    MINECRAFT_INTERVAL_SECONDS = 300
+    minecraft_every_n_cycles = max(1, round(MINECRAFT_INTERVAL_SECONDS / interval_seconds))
+
     cycles = 0
     while True:
+        do_minecraft = (cycles % minecraft_every_n_cycles == 0)
         try:
-            await collect_once()
+            await collect_once(do_minecraft=do_minecraft)
         except Exception as e:
             logger.exception(f"collector loop error: {e}")
 
