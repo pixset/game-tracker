@@ -111,6 +111,9 @@
   .game-name{ font-weight:600; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .game-name .src{ font-size:11px; color:var(--text-dim); margin-left:8px; font-weight:400;}
   .game-name .usertag{ font-size:10px; color:var(--signal); border:1px solid rgba(77,216,232,.3); border-radius:5px; padding:1px 5px; margin-left:6px; }
+  .kind-badge{ font-size:10px; font-weight:600; border-radius:5px; padding:1px 6px; margin-left:8px; letter-spacing:.02em; }
+  .kind-badge.is-game{ color:var(--signal); border:1px solid rgba(77,216,232,.3); }
+  .kind-badge.is-server{ color:var(--leaf); border:1px solid rgba(139,195,74,.35); }
   .players{ font-family:'JetBrains Mono',monospace; font-size:14.5px; font-weight:600; text-align:right; }
   .delta{ font-family:'JetBrains Mono',monospace; font-size:12px; text-align:right; }
   .delta.up{ color:var(--up); } .delta.down{ color:var(--down); }
@@ -228,11 +231,14 @@
     <div class="growth-strip" id="growthStrip"></div>
 
     <div class="filter-bar">
+      <div class="pill-group" id="kindFilter">
+        <button class="pill active" data-kind="games">Игры</button>
+        <button class="pill src-minecraft" data-kind="minecraft">Minecraft-сервера</button>
+      </div>
       <div class="pill-group" id="sourceFilter">
         <button class="pill active" data-src="all">Все игры</button>
         <button class="pill src-steam" data-src="steam">Steam</button>
         <button class="pill src-roblox" data-src="roblox">Roblox</button>
-        <button class="pill src-minecraft" data-src="minecraft">Minecraft</button>
         <button class="pill src-twitch" data-src="twitch">Twitch</button>
       </div>
       <div class="pill-group" id="limitFilter">
@@ -246,6 +252,9 @@
       </div>
       <div class="star-filter" id="watchlistFilter">★ Только избранное</div>
     </div>
+    <div class="mono" id="minecraftNote" style="display:none; margin:-6px 0 14px; color:var(--text-dim); font-size:12px;">
+      Данные по Minecraft-серверам обновляются раз в 5 минут (не каждую минуту, как остальные источники) — статус-API mcsrvstat.us сам кэширует ответ на этот срок, опрашивать чаще бессмысленно.
+    </div>
 
     <section class="section">
       <div class="section-head">
@@ -256,7 +265,7 @@
     </section>
 
     <footer>
-      <div class="mono">Источники данных: Steam Web API (топ — ISteamChartsService/GetGamesByConcurrentPlayers), Roblox Games API, Minecraft Server Status API (api.mcsrvstat.us), Twitch Helix API (зрители по категориям).</div>
+      <div class="mono">Источники данных: Steam Web API (топ — ISteamChartsService/GetGamesByConcurrentPlayers), Roblox Games API, Minecraft Server Status API (api.mcsrvstat.us, обновление раз в 5 минут), Twitch Helix API (зрители по категориям).</div>
       <div style="margin-top:6px;">Этот файл — фронтенд. Реальные цифры появятся только когда он открыт через задеплоенный backend (см. README в архиве проекта).</div>
     </footer>
   </div>
@@ -366,7 +375,7 @@ const WS_BASE = API_BASE.replace(/^http/, 'ws');
 let leaderboard = [];
 let isOnline = false;
 let ws = null;
-const state = { src:'all', limit:10, search:'', watchlistOnly:false };
+const state = { kind:'games', src:'all', limit:10, search:'', watchlistOnly:false };
 let compareSelection = []; // [{source,id,name}], без ограничения по количеству
 
 const watchKey = 'tracker_watchlist';
@@ -470,7 +479,12 @@ function onLeaderboardUpdate(){
    ========================================================= */
 function getFiltered(){
   let rows = [...leaderboard];
-  if(state.src !== 'all') rows = rows.filter(g=>g.source.toLowerCase() === state.src);
+  if(state.kind === 'minecraft'){
+    rows = rows.filter(g=>g.source.toLowerCase() === 'minecraft');
+  } else {
+    rows = rows.filter(g=>g.source.toLowerCase() !== 'minecraft');
+    if(state.src !== 'all') rows = rows.filter(g=>g.source.toLowerCase() === state.src);
+  }
   if(state.watchlistOnly) rows = rows.filter(g=>isWatched(g.source, g.id));
   if(state.search.trim()) rows = rows.filter(g=>g.name.toLowerCase().includes(state.search.trim().toLowerCase()));
   rows.sort((a,b)=>b.current - a.current);
@@ -492,8 +506,9 @@ function renderStatRow(rows){
 
 function renderGrowth(){
   const el = document.getElementById('growthStrip');
-  if(!leaderboard.length){ el.innerHTML=''; return; }
-  const top3 = [...leaderboard].sort((a,b)=>b.delta - a.delta).filter(g=>g.delta>0).slice(0,3);
+  const pool = leaderboard.filter(g=>g.source.toLowerCase() !== 'minecraft');
+  if(!pool.length){ el.innerHTML=''; return; }
+  const top3 = [...pool].sort((a,b)=>b.delta - a.delta).filter(g=>g.delta>0).slice(0,3);
   if(!top3.length){ el.innerHTML=''; return; }
   el.innerHTML = `<span class="growth-label">Растут быстрее всех</span>` +
     top3.map(g=>`<div class="growth-chip" data-source="${g.source}" data-id="${g.id}">${g.name} <span class="g-up">▲ ${fmt(g.delta)}</span></div>`).join('');
@@ -501,9 +516,10 @@ function renderGrowth(){
 
 function renderTicker(){
   const wrap = document.getElementById('tickerWrap');
-  if(!leaderboard.length){ wrap.classList.remove('show'); return; }
+  const pool = leaderboard.filter(g=>g.source.toLowerCase() !== 'minecraft');
+  if(!pool.length){ wrap.classList.remove('show'); return; }
   wrap.classList.add('show');
-  const top = [...leaderboard].sort((a,b)=>b.current-a.current).slice(0,12);
+  const top = [...pool].sort((a,b)=>b.current-a.current).slice(0,12);
   document.getElementById('tickerTrack').innerHTML = [...top, ...top].map(g=>{
     const up = g.delta >= 0;
     return `<div class="tick-item"><b>${g.name}</b> ${fmt(g.current)} <span class="${up?'tick-up':'tick-down'}">${up?'▲':'▼'}</span></div>`;
@@ -526,6 +542,9 @@ function emptyStateHtml(){
   if(state.src === 'twitch' && !leaderboard.some(g=>g.source.toLowerCase()==='twitch')){
     return `<div class="empty-state"><b>Twitch пока не настроен на сервере.</b><br><br>Владельцу сайта нужно задать переменные окружения <code>TWITCH_CLIENT_ID</code> и <code>TWITCH_CLIENT_SECRET</code> на backend — без них зрители Twitch не собираются.</div>`;
   }
+  if(state.kind === 'minecraft' && !leaderboard.some(g=>g.source.toLowerCase()==='minecraft')){
+    return `<div class="empty-state"><b>Данных по Minecraft-серверам пока нет.</b><br><br>Они опрашиваются раз в 5 минут (не каждую минуту, как остальные источники) — первые цифры появятся в течение 5 минут после старта сервера.</div>`;
+  }
   return `<div class="empty-state">Ничего не найдено с текущими фильтрами или поиском.</div>`;
 }
 
@@ -533,8 +552,13 @@ function renderBoard(){
   const rows = getFiltered();
   renderStatRow(rows);
 
-  const srcLabels = { steam:'Steam', roblox:'Roblox', twitch:'Twitch', minecraft:'Minecraft' };
-  const srcLabel = state.src === 'all' ? 'все игры' : (srcLabels[state.src] || state.src);
+  document.getElementById('sourceFilter').style.display = state.kind === 'minecraft' ? 'none' : 'flex';
+  document.getElementById('minecraftNote').style.display = state.kind === 'minecraft' ? 'block' : 'none';
+
+  const srcLabels = { steam:'Steam', roblox:'Roblox', twitch:'Twitch' };
+  const srcLabel = state.kind === 'minecraft'
+    ? 'Minecraft-сервера'
+    : (state.src === 'all' ? 'все игры' : (srcLabels[state.src] || state.src));
   document.getElementById('boardTitle').textContent = `Топ-${Math.min(state.limit, rows.length || state.limit)} · ${srcLabel}`;
   document.getElementById('lastUpdate').textContent = isOnline ? 'обновляется live' : 'нет соединения';
 
@@ -546,13 +570,15 @@ function renderBoard(){
     const watched = isWatched(g.source, g.id);
     const selected = compareSelection.some(s=>s.source===g.source && s.id===g.id);
     const userTag = g.added_by === 'user' ? `<span class="usertag">добавлено игроком</span>` : '';
+    const isServer = g.source.toLowerCase() === 'minecraft';
+    const kindBadge = `<span class="kind-badge ${isServer?'is-server':'is-game'}">${isServer?'Сервер':'Игра'}</span>`;
     return `
     <div class="row ${selected?'compare-active':''}" data-source="${g.source}" data-id="${g.id}" data-name="${g.name.replace(/"/g,'&quot;')}">
       <div class="rank ${i<3?'top3':''}">${String(i+1).padStart(2,'0')}</div>
       <input type="checkbox" class="cmp-check" data-cmp="${g.source}:${g.id}" ${selected?'checked':''} title="Добавить к сравнению">
       <button class="star-btn ${watched?'active':''}" data-star="${g.source}:${g.id}">${watched?'★':'☆'}</button>
       ${thumbMarkup(g, 'row-thumb')}
-      <div class="game-name">${g.name}<span class="src">${g.source}</span>${userTag}</div>
+      <div class="game-name">${g.name}${kindBadge}<span class="src">${g.source}</span>${userTag}</div>
       <div class="players">${fmt(g.current)}</div>
       <div class="delta ${up?'up':'down'}">${up?'▲':'▼'} ${fmt(Math.abs(g.delta))}</div>
     </div>`;
@@ -1035,6 +1061,11 @@ document.getElementById('addSubmitBtn').addEventListener('click', async ()=>{
 /* =========================================================
    СОБЫТИЯ UI СПИСКА
    ========================================================= */
+document.getElementById('kindFilter').addEventListener('click', e=>{
+  const btn = e.target.closest('[data-kind]'); if(!btn) return;
+  document.querySelectorAll('#kindFilter .pill').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active'); state.kind = btn.dataset.kind; renderBoard();
+});
 document.getElementById('sourceFilter').addEventListener('click', e=>{
   const btn = e.target.closest('[data-src]'); if(!btn) return;
   document.querySelectorAll('#sourceFilter .pill').forEach(p=>p.classList.remove('active'));
